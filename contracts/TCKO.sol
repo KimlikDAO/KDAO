@@ -52,6 +52,9 @@ import "./IERC20.sol";
  *
  * Since the `releaseStage` cannot be incremented beyond 5, this ensures that
  * there can be at most 100M TCKOs minted.
+ *
+ * Further, each manual mint results in some unlocked and some locked TCKOs,
+ * and the ratio is fixed globally.
  */
 contract TCKO is IERC20 {
     // dev.kimlikdao.eth
@@ -276,7 +279,8 @@ contract TCKO is IERC20 {
                 // At stage Presale2Unlocked, Presale2 tokens are fully unlocked.
                 kilitliTCKO.unlockStage(DistroStage.Presale2);
             } else if (distroStage == DistroStage.FinalUnlock) {
-                // TODO: require(block.timestamp > 2026)
+                // The last stage is unlocked in 2028
+                require(block.timestamp > 1832306400);
                 // At stage FinalUnlock, FinalMint tokens (therefore all locked
                 // tokens) are fully unlocked.
                 kilitliTCKO.unlockStage(DistroStage.FinalMint);
@@ -316,9 +320,8 @@ contract KilitliTCKO is IERC20 {
     address payable private constant DAO_KASASI =
         payable(0xC152e02e54CbeaCB51785C174994c2084bd9EF51);
 
-    mapping(address => uint128[2]) balances;
-    address[] addresses;
-
+    mapping(address => uint128[2]) private balances;
+    address[] private addresses;
     TCKO private tcko = TCKO(msg.sender);
 
     function name() external pure override returns (string memory) {
@@ -387,10 +390,6 @@ contract KilitliTCKO is IERC20 {
         emit Transfer(address(this), account, amount);
     }
 
-    /**
-     * TODO: We need to understand the gas usage of this method very well.
-     * If it fails due to gas usage, the entire `distroStage()` gets stuck.
-     */
     function unlockStage(DistroStage stage) external {
         require(msg.sender == address(tcko));
         uint256 length = addresses.length;
@@ -401,6 +400,23 @@ contract KilitliTCKO is IERC20 {
                 delete balances[addresses[i]][uint8(stage) & 1];
             }
         }
+    }
+
+    function unlock() external {
+        DistroStage stage = tcko.distroStage();
+        uint128 locked = 0;
+        if (
+            stage >= DistroStage.DAOSaleEnded && stage != DistroStage.FinalMint
+        ) {
+            locked += balances[msg.sender][0];
+            delete balances[msg.sender][0];
+        }
+
+        if (stage >= DistroStage.Presale2Unlocked) {
+            locked += balances[msg.sender][1];
+            delete balances[msg.sender][1];
+        }
+        tcko.unlockToAddress(msg.sender, locked);
     }
 
     function selfDestruct() external {
