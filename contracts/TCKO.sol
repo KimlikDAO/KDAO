@@ -289,6 +289,8 @@ contract TCKO is IERC20 {
         require(totalMinted + amount <= supplyCap()); // Checked addition
         // We need this to satisfy (I4).
         require(account != address(kilitliTCKO));
+        // If minted to `DAO_KASASI` unlocking would lead to redemption.
+        require(account != DAO_KASASI);
         unchecked {
             uint256 unlocked = (amount + 3) / 4;
             uint256 locked = amount - unlocked;
