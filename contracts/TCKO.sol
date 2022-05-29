@@ -8,9 +8,7 @@ import "./IDAOKasasi.sol";
 import "./IERC20.sol";
 
 // dev.kimlikdao.eth
-address payable constant DEV_KASASI = payable(
-    0x333Bc913264B6E4a10fd38F30264Ff9c9801176D
-);
+address constant DEV_KASASI = 0x333Bc913264B6E4a10fd38F30264Ff9c9801176D;
 // kimlikdao.eth
 address payable constant DAO_KASASI = payable(
     0xC152e02e54CbeaCB51785C174994c2084bd9EF51
@@ -322,7 +320,7 @@ contract TCKO is IERC20 {
     function incrementDistroStage(DistroStage newStage) external {
         require(tx.origin == DEV_KASASI);
         // Ensure the user provided round number matches, to prevent user error.
-        require(uint8(distroStage) + 1 == uint8(newStage));
+        require(uint256(distroStage) + 1 == uint256(newStage));
         // Make sure all minting has been done for the current stage
         require(
             supplyCap() == totalMinted,
