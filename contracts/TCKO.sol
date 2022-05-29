@@ -362,11 +362,11 @@ contract TCKO is IERC20 {
 
 /**
  * A KilitliTCKO represents a locked TCKO, which cannot be redeemed or
- * transferred, but automatically turns into a TCKO at the prescribed
+ * transferred, but turns into a TCKO automatically at the prescribed
  * `DistroStage`.
  *
  * The unlocking is triggered by the `DEV_KASASI` using the `unlockAllEven()`
- * or `unlockAllOdd()` method and the gas is paid by KimlikDAO; the user does
+ * or `unlockAllOdd()` methods and the gas is paid by KimlikDAO; the user does
  * not need to take any action to unlock their tokens.
  *
  * Invariants:
@@ -456,7 +456,6 @@ contract KilitliTCKO is IERC20 {
     }
 
     function unlockAllEven() external {
-        require(tx.origin == DEV_KASASI);
         DistroStage stage = tcko.distroStage();
         require(
             stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint
@@ -476,7 +475,6 @@ contract KilitliTCKO is IERC20 {
     }
 
     function unlockAllOdd() external {
-        require(tx.origin == DEV_KASASI);
         require(tcko.distroStage() >= DistroStage.Presale2Unlock);
 
         uint256 length = accounts1.length;
