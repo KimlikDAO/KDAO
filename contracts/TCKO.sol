@@ -408,7 +408,7 @@ contract KilitliTCKO is IERC20 {
 
     function transfer(address to, uint256) external override returns (bool) {
         if (to == address(this))
-            return unlock();
+            return unlock(msg.sender);
         return false;
     }
 
@@ -452,6 +452,26 @@ contract KilitliTCKO is IERC20 {
         }
     }
 
+    function unlock(address account) public returns (bool) {
+        DistroStage stage = tcko.distroStage();
+        uint256 locked = 0;
+        if (stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint) {
+            locked += balances[account][0];
+            delete balances[account][0];
+        }
+        if (stage >= DistroStage.Presale2Unlock) {
+            locked += balances[account][1];
+            delete balances[account][1];
+        }
+        if (locked > 0) {
+            emit Transfer(account, address(this), locked);
+            supply -= locked;
+            tcko.transfer(account, locked);
+            return true;
+        }
+        return false;
+    }
+
     function unlockAllEven() external {
         DistroStage stage = tcko.distroStage();
         require(
@@ -485,26 +505,6 @@ contract KilitliTCKO is IERC20 {
                 tcko.transfer(account, locked);
             }
         }
-    }
-
-    function unlock() public returns (bool) {
-        DistroStage stage = tcko.distroStage();
-        uint256 locked = 0;
-        if (stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint) {
-            locked += balances[msg.sender][0];
-            delete balances[msg.sender][0];
-        }
-        if (stage >= DistroStage.Presale2Unlock) {
-            locked += balances[msg.sender][1];
-            delete balances[msg.sender][1];
-        }
-        if (locked > 0) {
-            emit Transfer(msg.sender, address(this), locked);
-            supply -= locked;
-            tcko.transfer(msg.sender, locked);
-            return true;
-        }
-        return false;
     }
 
     /**
