@@ -292,6 +292,8 @@ contract TCKO is IERC20 {
                     msg.sender == presale2Contract)
         );
         require(totalMinted + amount <= supplyCap()); // Checked addition
+        // We need this to satisfy (I4).
+        require(account != address(kilitliTCKO));
         unchecked {
             uint256 unlocked = amount / 4;
             uint256 locked = amount - unlocked;
