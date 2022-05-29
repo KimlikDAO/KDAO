@@ -48,41 +48,69 @@ address payable constant DAO_KASASI = payable(
  * There will be 100M TCKOs minted ever, distributed over 5 rounds of 20M TCKOs
  * each.
  *
- * The current distribution stage is stored at the public variable
- * `distroStage`, which can only be incremented. It can only be incremented
- * by the address `dev.kimlikdao.eth` by calling the `incrementDistroStage()`
- * method of this contract.
+ * Inside the contract, we keep track of another variable `distroStage`, which
+ * ranges between 0 and 7 inclusive, and can be mapped to the `distroRound` as
+ * follows.
  *
- * In distribution stages 3 and 4, 20M TCKOs are minted to `kimlikdao.eth`
+ *   distroRound :=  distroStage / 2 + (distroStage == 0 ? 1 : 2)
+ *
+ * The `distroStage` has 8 values, corresponding to the beginning and the
+ * ending of the 5 distribution rounds; see `DistroStage` enum.
+ * The `distroStage` can only be incremented, and only by `dev.kimlikdao.eth`
+ * by calling the `incrementDistroStage()` method of this contract.
+ *
+ * In distribution rounds 3 and 4, 20M TCKOs are minted to `kimlikdao.eth`
  * automatically, to be sold / distributed to the public by `kimlikdao.eth`.
- * In the rest of the stages (1, 2, and 5), the minting is manually managed
+ * In the rest of the rounds (1, 2, and 5), the minting is manually managed
  * by `dev.kimlikdao.eth`, however the total minted TCKOs is capped at
- * distroStage * 20M TCKOs at any moment during the lifetime of the contract.
+ * distroRound * 20M TCKOs at any moment during the lifetime of the contract.
+ * Additionally, in round 2, the `presale2Contract` is also given minting
+ * rights, again respecting the 20M * distroRound supply cap.
  *
- * Since the `releaseStage` cannot be incremented beyond 5, this ensures that
+ * Since the `releaseRound` cannot be incremented beyond 5, this ensures that
  * there can be at most 100M TCKOs minted.
  *
- * Further, each manual mint results in some unlocked and some locked TCKOs,
- * and the ratio is fixed globally.
+ * Locking
+ * =======
+ * Each mint to external parties results in some unlocked and some locked
+ * TCKOs, and the ratio is fixed globally. Only the 40M TCKOs minted to
+ * `kimlikdao.eth` across rounds 3 and 4 are fully unlocked.
+ *
+ * The unlocking schedule is as follows:
+ *
+ *  /------------------------------------
+ *  | Minted in round  |  Unlock time
+ *  |------------------------------------
+ *  |   Round 1        |  End of round 3
+ *  |   Round 2        |  End of round 4
+ *  |   Round 3        |  Unlocked
+ *  |   Round 4        |  Unlocked
+ *  |   Round 5        |  Year 2028
  *
  * Define:
  *   (D1) distroRound := distroStage / 2 + (distroStage == 0 ? 1 : 2)
  *
+ * Facts:
+ *   (F1) 1 <= distroRound <= 5
+ *
  * Invariants:
- *   (I1) distroRound <= 5
- *   (I2) supplyCap() <= 20M * 1M * distroRound
- *   (I3) sum_a(balances[a]) + totalBurned == totalMinted
- *   (I4) totalMinted <= supplyCap()
- *   (I5) balances[kilitliTCKO] == kilitliTCKO.totalSupply()
+ *   (I1) supplyCap() <= 20M * 1M * distroRound
+ *   (I2) sum_a(balances[a]) + totalBurned == totalMinted
+ *   (I3) totalMinted <= supplyCap()
+ *   (I4) balances[kilitliTCKO] == kilitliTCKO.totalSupply()
+ *
+ * (F1) follows because DistroStage has 8 values and floor(7/2) + 2 = 5.
+ * Combining (F1) and (I1) gives the 100M TCKO supply cap.
  */
 contract TCKO is IERC20 {
     // ERC20 contract for locked TCKOs.
-    KilitliTCKO kilitliTCKO = new KilitliTCKO();
-    mapping(address => uint256) private balances;
-    mapping(address => mapping(address => uint256)) private allowances;
+    KilitliTCKO public kilitliTCKO = new KilitliTCKO();
     uint256 public totalMinted;
     uint256 public totalBurned;
     DistroStage public distroStage;
+
+    mapping(address => uint256) private balances;
+    mapping(address => mapping(address => uint256)) private allowances;
     address private presale2Contract;
 
     function name() external pure override returns (string memory) {
@@ -101,7 +129,7 @@ contract TCKO is IERC20 {
      * Returns the total number of TCKOs in existence, locked or unlocked.
      *
      * Ensures:
-     *   totalSupply() == sum_a(balances[a])
+     *   (E1) totalSupply() == sum_a(balances[a])
      */
     function totalSupply() external view override returns (uint256) {
         unchecked {
@@ -113,7 +141,7 @@ contract TCKO is IERC20 {
      * Returns the max number of TCKOs that can be minted at the current stage.
      *
      * Ensures:
-     *   supplyCap() <= 20M * 1M * distroRound
+     *   (E2) supplyCap() <= 20M * 1M * distroRound
      *
      * Recall that distroRound := distroStage / 2 + distroStage == 0 ? 1 : 2,
      * so combined with distroRound <= 5, we get 100M TCKO supply cap.
@@ -247,13 +275,13 @@ contract TCKO is IERC20 {
             balances[address(kilitliTCKO)] -= toUnlock;
             balances[account] += toUnlock;
         }
-        emit Transfer(address(this), account, toUnlock);
+        emit Transfer(address(kilitliTCKO), account, toUnlock);
     }
 
     /**
      * Mints given number of TCKOs, respecting the supply cap.
      *
-     * A fixed locked / unlocked ratio is used across mints to all external
+     * A fixed locked / unlocked ratio is used across all mints to external
      * participants.
      *
      * To mint TCKOs to `DAO_KASASI`, a separate code path is used, in which
@@ -324,11 +352,11 @@ contract TCKO is IERC20 {
     }
 
     /**
-     * Move ERC20 tokens sent to this address by accident to `DAO_KASASI`
+     * Move ERC20 tokens sent to this address by accident to `DAO_KASASI`.
      */
     function rescueToken(IERC20 token) external {
-        // We restrict this method to `DEV_KASASI` only, as we call a method of an unkown
-        // contract, which could potentially be a security risk.
+        // We restrict this method to `DEV_KASASI` only, as we call a method
+        // of an unkown contract, which could potentially be a security risk.
         require(tx.origin == DEV_KASASI);
         token.transfer(DAO_KASASI, token.balanceOf(address(this)));
     }
@@ -339,9 +367,9 @@ contract TCKO is IERC20 {
  * transferred, but automatically turns into a TCKO at the prescribed
  * `DistroStage`.
  *
- * The unlocking is triggered by the `DEV_KASASI` using the `unlockAllOdd()`
- * method and the gas is paid by KimlikDAO; the user does not need
- * to take any action to unlock their tokens.
+ * The unlocking is triggered by the `DEV_KASASI` using the `unlockAllEven()`
+ * or `unlockAllOdd()` method and the gas is paid by KimlikDAO; the user does
+ * not need to take any action to unlock their tokens.
  *
  * Invariants:
  *   (I1) sum_a(balances[a][0]) + sum_a(balances[a][1]) == supply
@@ -350,13 +378,13 @@ contract TCKO is IERC20 {
  *   (I4) balance[a][1] > 0 => accounts1.includes(a)
  */
 contract KilitliTCKO is IERC20 {
+    TCKO private tcko = TCKO(msg.sender);
     mapping(address => uint128[2]) private balances;
     address[] private accounts0;
     // Split Presale2 accounts out, so that even if we can't unlock them in
     // one shot due to gas limit, we can still unlock others in one shot.
     address[] private accounts1;
     uint256 private supply;
-    TCKO private tcko = TCKO(msg.sender);
 
     function name() external pure override returns (string memory) {
         return "KimlikDAO Kilitli Tokeni";
