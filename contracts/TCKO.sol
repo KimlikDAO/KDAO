@@ -171,6 +171,9 @@ contract TCKO is IERC20 {
         // Disable sending to the 0 address, which is a common software / user
         // error.
         require(to != address(0));
+        // Disable sending TCKOs to this contract address, as `rescueToken()` on
+        // TCKOs would result in a redemption to this contract, which is *bad*.
+        require(to != address(this));
         // We disallow sending to `kilitliTCKO` as we want to enforce (I4)
         // at all times.
         require(to != address(kilitliTCKO));
@@ -204,7 +207,8 @@ contract TCKO is IERC20 {
         uint256 amount
     ) external override returns (bool) {
         require(to != address(0));
-        require(to != address(kilitliTCKO));
+        require(to != address(this));
+        require(to != address(kilitliTCKO)); // For (I4)
         uint256 fromBalance = balances[from];
         require(amount <= fromBalance);
         uint256 senderAllowance = allowances[from][msg.sender];
@@ -265,15 +269,6 @@ contract TCKO is IERC20 {
         allowances[msg.sender][spender] = newAmount;
         emit Approval(msg.sender, spender, newAmount);
         return true;
-    }
-
-    function unlockToAddress(address account, uint256 toUnlock) external {
-        require(msg.sender == address(kilitliTCKO));
-        unchecked {
-            balances[address(kilitliTCKO)] -= toUnlock;
-            balances[account] += toUnlock;
-        }
-        emit Transfer(address(kilitliTCKO), account, toUnlock);
     }
 
     /**
@@ -471,7 +466,7 @@ contract KilitliTCKO is IERC20 {
                 delete balances[account][0];
                 emit Transfer(account, address(this), locked);
                 supply -= locked;
-                tcko.unlockToAddress(account, locked);
+                tcko.transfer(account, locked);
             }
         }
     }
@@ -487,7 +482,7 @@ contract KilitliTCKO is IERC20 {
                 delete balances[account][1];
                 emit Transfer(account, address(this), locked);
                 supply -= locked;
-                tcko.unlockToAddress(account, locked);
+                tcko.transfer(account, locked);
             }
         }
     }
@@ -506,7 +501,7 @@ contract KilitliTCKO is IERC20 {
         if (locked > 0) {
             emit Transfer(msg.sender, address(this), locked);
             supply -= locked;
-            tcko.unlockToAddress(msg.sender, locked);
+            tcko.transfer(msg.sender, locked);
             return true;
         }
         return false;
