@@ -409,7 +409,9 @@ contract KilitliTCKO is IERC20 {
         return balances[account][0] + balances[account][1];
     }
 
-    function transfer(address, uint256) external pure override returns (bool) {
+    function transfer(address to, uint256) external override returns (bool) {
+        if (to == address(this))
+            return unlock();
         return false;
     }
 
@@ -490,9 +492,9 @@ contract KilitliTCKO is IERC20 {
         }
     }
 
-    function unlock() external {
+    function unlock() public returns (bool) {
         DistroStage stage = tcko.distroStage();
-        uint128 locked = 0;
+        uint256 locked = 0;
         if (stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint) {
             locked += balances[msg.sender][0];
             delete balances[msg.sender][0];
@@ -505,7 +507,9 @@ contract KilitliTCKO is IERC20 {
             emit Transfer(msg.sender, address(this), locked);
             supply -= locked;
             tcko.unlockToAddress(msg.sender, locked);
+            return true;
         }
+        return false;
     }
 
     /**
