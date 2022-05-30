@@ -12,3 +12,7 @@ enum DistroStage {
     FinalMint,
     FinalUnlock
 }
+
+interface HasDistroStage {
+    function distroStage() external view returns (DistroStage);
+}

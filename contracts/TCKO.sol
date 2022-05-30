@@ -6,16 +6,11 @@ pragma solidity ^0.8.14;
 import "./DistroStage.sol";
 import "./IDAOKasasi.sol";
 import "./IERC20.sol";
-
-// dev.kimlikdao.eth
-address constant DEV_KASASI = 0x333Bc913264B6E4a10fd38F30264Ff9c9801176D;
-// kimlikdao.eth
-address payable constant DAO_KASASI = payable(
-    0xC152e02e54CbeaCB51785C174994c2084bd9EF51
-);
+import "./KilitliTCKO.sol";
+import "./KimlikDAO.sol";
 
 /**
- * @title TCKO: KimlikDAO governance token
+ * @title TCKO: KimlikDAO token
  *
  * Utility
  * =======
@@ -30,7 +25,7 @@ address payable constant DAO_KASASI = payable(
  * Note however that the market value TCKO is ought to be higher than the
  * redemption amount, as TCKO represents a share in KimlikDAO's future cash
  * flow as well. The redemption amount is merely a lower bound on TCKOs value
- * and this functionality should only be used only as a last resort.
+ * and this functionality should only be used as a last resort.
  *
  * Investment decisions are made through proposals to swap some treasury assets
  * to other assets on a DEX, which are voted on-chain by all TCKO holders.
@@ -100,28 +95,20 @@ address payable constant DAO_KASASI = payable(
  * (F1) follows because DistroStage has 8 values and floor(7/2) + 2 = 5.
  * Combining (F1) and (I1) gives the 100M TCKO supply cap.
  */
-contract TCKO is IERC20 {
-    // ERC20 contract for locked TCKOs.
-    KilitliTCKO public kilitliTCKO = new KilitliTCKO();
+contract TCKO is IERC20, HasDistroStage {
+    string public override name = "KimlikDAO Tokeni";
+    string public override symbol = "TCKO";
+    uint8 public override decimals = 6;
+
+    DistroStage public override distroStage;
     uint256 public totalMinted;
     uint256 public totalBurned;
-    DistroStage public distroStage;
 
+    // ERC20 contract for locked TCKOs.
+    KilitliTCKO private kilitliTCKO = new KilitliTCKO();
     mapping(address => uint256) private balances;
     mapping(address => mapping(address => uint256)) private allowances;
     address private presale2Contract;
-
-    function name() external pure override returns (string memory) {
-        return "KimlikDAO Tokeni";
-    }
-
-    function symbol() external pure override returns (string memory) {
-        return "TCKO";
-    }
-
-    function decimals() external pure override returns (uint8) {
-        return 6;
-    }
 
     /**
      * Returns the total number of TCKOs in existence, locked or unlocked.
@@ -321,10 +308,7 @@ contract TCKO is IERC20 {
         // Ensure the user provided round number matches, to prevent user error.
         require(uint256(distroStage) + 1 == uint256(newStage));
         // Make sure all minting has been done for the current stage
-        require(
-            supplyCap() == totalMinted,
-            "TCKO: All allowed cap must be minted."
-        );
+        require(supplyCap() == totalMinted, "Mint all!");
         // Ensure that we cannot go to FinalUnlock before 2028.
         if (newStage == DistroStage.FinalUnlock) {
             require(block.timestamp > 1832306400);
@@ -355,180 +339,6 @@ contract TCKO is IERC20 {
         // We restrict this method to `DEV_KASASI` only, as we call a method
         // of an unkown contract, which could potentially be a security risk.
         require(tx.origin == DEV_KASASI);
-        token.transfer(DAO_KASASI, token.balanceOf(address(this)));
-    }
-}
-
-/**
- * A KilitliTCKO represents a locked TCKO, which cannot be redeemed or
- * transferred, but turns into a TCKO automatically at the prescribed
- * `DistroStage`.
- *
- * The unlocking is triggered by the `DEV_KASASI` using the `unlockAllEven()`
- * or `unlockAllOdd()` methods and the gas is paid by KimlikDAO; the user does
- * not need to take any action to unlock their tokens.
- *
- * Invariants:
- *   (I1) sum_a(balances[a][0]) + sum_a(balances[a][1]) == supply
- *   (I2) supply == TCKO.balances[kilitliTCKO]
- *   (I3) balance[a][0] > 0 => accounts0.includes(a)
- *   (I4) balance[a][1] > 0 => accounts1.includes(a)
- */
-contract KilitliTCKO is IERC20 {
-    TCKO private tcko = TCKO(msg.sender);
-    mapping(address => uint128[2]) private balances;
-    address[] private accounts0;
-    // Split Presale2 accounts out, so that even if we can't unlock them in
-    // one shot due to gas limit, we can still unlock others in one shot.
-    address[] private accounts1;
-    uint256 private supply;
-
-    function name() external pure override returns (string memory) {
-        return "KimlikDAO Kilitli Tokeni";
-    }
-
-    function symbol() external pure override returns (string memory) {
-        return "TCKO-k";
-    }
-
-    function decimals() external pure override returns (uint8) {
-        return 6;
-    }
-
-    function totalSupply() external view override returns (uint256) {
-        return supply;
-    }
-
-    function balanceOf(address account)
-        external
-        view
-        override
-        returns (uint256)
-    {
-        return balances[account][0] + balances[account][1];
-    }
-
-    function transfer(address to, uint256) external override returns (bool) {
-        if (to == address(this))
-            return unlock(msg.sender);
-        return false;
-    }
-
-    function transferFrom(
-        address,
-        address,
-        uint256
-    ) external pure override returns (bool) {
-        return false;
-    }
-
-    function allowance(address, address)
-        external
-        pure
-        override
-        returns (uint256)
-    {
-        return 0;
-    }
-
-    function approve(address, uint256) external pure override returns (bool) {
-        return false;
-    }
-
-    function mint(
-        address account,
-        uint256 amount,
-        DistroStage stage
-    ) external {
-        require(msg.sender == address(tcko));
-        unchecked {
-            if (uint256(stage) & 1 == 0) {
-                accounts0.push(account);
-                balances[account][0] += uint128(amount);
-            } else {
-                accounts1.push(account);
-                balances[account][1] += uint128(amount);
-            }
-            supply += amount;
-            emit Transfer(address(this), account, amount);
-        }
-    }
-
-    function unlock(address account) public returns (bool) {
-        DistroStage stage = tcko.distroStage();
-        uint256 locked = 0;
-        if (stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint) {
-            locked += balances[account][0];
-            delete balances[account][0];
-        }
-        if (stage >= DistroStage.Presale2Unlock) {
-            locked += balances[account][1];
-            delete balances[account][1];
-        }
-        if (locked > 0) {
-            emit Transfer(account, address(this), locked);
-            supply -= locked;
-            tcko.transfer(account, locked);
-            return true;
-        }
-        return false;
-    }
-
-    function unlockAllEven() external {
-        DistroStage stage = tcko.distroStage();
-        require(
-            stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint
-        );
-
-        uint256 length = accounts0.length;
-        for (uint256 i = 0; i < length; ++i) {
-            address account = accounts0[i];
-            uint256 locked = balances[account][0];
-            if (locked > 0) {
-                delete balances[account][0];
-                emit Transfer(account, address(this), locked);
-                supply -= locked;
-                tcko.transfer(account, locked);
-            }
-        }
-    }
-
-    function unlockAllOdd() external {
-        require(tcko.distroStage() >= DistroStage.Presale2Unlock);
-
-        uint256 length = accounts1.length;
-        for (uint256 i = 0; i < length; ++i) {
-            address account = accounts1[i];
-            uint256 locked = balances[account][1];
-            if (locked > 0) {
-                delete balances[account][1];
-                emit Transfer(account, address(this), locked);
-                supply -= locked;
-                tcko.transfer(account, locked);
-            }
-        }
-    }
-
-    /**
-     * Deletes the contract if all TCKO-k's have been unlocked.
-     */
-    function selfDestruct() external {
-        // We restrict this method to `DEV_KASASI` as there may be ERC20 tokens
-        // sent to this contract by accident waiting to be rescued.
-        require(tx.origin == DEV_KASASI);
-        require(supply == 0);
-        selfdestruct(DAO_KASASI);
-    }
-
-    /**
-     * Moves ERC20 tokens sent to this address by accident to `DAO_KASASI`.
-     */
-    function rescueToken(IERC20 token) external {
-        // We restrict this method to `DEV_KASASI` only, as we call a method
-        // of an unkown contract, which could potentially be a security risk.
-        require(tx.origin == DEV_KASASI);
-        // Disable sending out TCKO to ensure the invariant TCKO.(I4).
-        require(token != tcko);
         token.transfer(DAO_KASASI, token.balanceOf(address(this)));
     }
 }
