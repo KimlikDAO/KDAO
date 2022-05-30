@@ -174,7 +174,7 @@ contract TCKO is IERC20, HasDistroStage {
             // treasury assets.
             if (to == DAO_KASASI) {
                 IDAOKasasi(DAO_KASASI).redeem(
-                    msg.sender,
+                    payable(msg.sender),
                     amount,
                     totalMinted - totalBurned
                 );
@@ -205,7 +205,7 @@ contract TCKO is IERC20, HasDistroStage {
             allowance[from][msg.sender] = senderAllowance - amount;
             if (to == DAO_KASASI) {
                 IDAOKasasi(DAO_KASASI).redeem(
-                    from,
+                    payable(from),
                     amount,
                     totalMinted - totalBurned
                 );

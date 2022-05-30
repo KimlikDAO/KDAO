@@ -6,7 +6,7 @@ import "./DistroStage.sol";
 
 interface IDAOKasasi {
     function redeem(
-        address owner,
+        address payable owner,
         uint256 burnedTokens,
         uint256 totalTokens
     ) external;
