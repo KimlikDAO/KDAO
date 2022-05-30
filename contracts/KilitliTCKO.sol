@@ -17,15 +17,13 @@ import "./KimlikDAO.sol";
  * not need to take any action to unlock their tokens.
  *
  * Invariants:
- *   (I1) sum_a(balances[a][0]) + sum_a(balances[a][1]) == supply
- *   (I2) supply == TCKO.balances[kilitliTCKO]
+ *   (I1) sum_a(balances[a][0]) + sum_a(balances[a][1]) == totalSupply
+ *   (I2) totalSupply == TCKO.balanceOf(address(this))
  *   (I3) balance[a][0] > 0 => accounts0.includes(a)
  *   (I4) balance[a][1] > 0 => accounts1.includes(a)
  */
 contract KilitliTCKO is IERC20 {
-    string public override name = "KimlikDAO Kilitli Tokeni";
-    string public override symbol = "TCKO-k";
-    uint8 public override decimals = 6;
+    uint256 public override totalSupply;
 
     IERC20 private tcko = IERC20(msg.sender);
     mapping(address => uint128[2]) private balances;
@@ -33,10 +31,17 @@ contract KilitliTCKO is IERC20 {
     // Split Presale2 accounts out, so that even if we can't unlock them in
     // one shot due to gas limit, we can still unlock others in one shot.
     address[] private accounts1;
-    uint256 private supply;
 
-    function totalSupply() external view override returns (uint256) {
-        return supply;
+    function name() external pure override returns (string memory) {
+        return "KimlikDAO Kilitli Tokeni";
+    }
+
+    function symbol() external pure override returns (string memory) {
+        return "TCKO-k";
+    }
+
+    function decimals() external pure override returns (uint8) {
+        return 6;
     }
 
     function balanceOf(address account)
@@ -45,7 +50,9 @@ contract KilitliTCKO is IERC20 {
         override
         returns (uint256)
     {
-        return balances[account][0] + balances[account][1];
+        unchecked {
+            return balances[account][0] + balances[account][1];
+        }
     }
 
     function transfer(address to, uint256) external override returns (bool) {
@@ -88,29 +95,34 @@ contract KilitliTCKO is IERC20 {
                 accounts1.push(account);
                 balances[account][1] += uint128(amount);
             }
-            supply += amount;
+            totalSupply += amount;
             emit Transfer(address(this), account, amount);
         }
     }
 
     function unlock(address account) public returns (bool) {
-        DistroStage stage = HasDistroStage(address(tcko)).distroStage();
-        uint256 locked = 0;
-        if (stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint) {
-            locked += balances[account][0];
-            delete balances[account][0];
+        unchecked {
+            DistroStage stage = HasDistroStage(address(tcko)).distroStage();
+            uint256 locked = 0;
+            if (
+                stage >= DistroStage.DAOSaleEnd &&
+                stage != DistroStage.FinalMint
+            ) {
+                locked += balances[account][0];
+                delete balances[account][0];
+            }
+            if (stage >= DistroStage.Presale2Unlock) {
+                locked += balances[account][1];
+                delete balances[account][1];
+            }
+            if (locked > 0) {
+                emit Transfer(account, address(this), locked);
+                totalSupply -= locked;
+                tcko.transfer(account, locked);
+                return true;
+            }
+            return false;
         }
-        if (stage >= DistroStage.Presale2Unlock) {
-            locked += balances[account][1];
-            delete balances[account][1];
-        }
-        if (locked > 0) {
-            emit Transfer(account, address(this), locked);
-            supply -= locked;
-            tcko.transfer(account, locked);
-            return true;
-        }
-        return false;
     }
 
     function unlockAllEven() external {
@@ -119,17 +131,20 @@ contract KilitliTCKO is IERC20 {
             stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint,
             "TCKO-k: Not matured"
         );
-
-        uint256 length = accounts0.length;
-        for (uint256 i = 0; i < length; ++i) {
-            address account = accounts0[i];
-            uint256 locked = balances[account][0];
-            if (locked > 0) {
-                delete balances[account][0];
-                emit Transfer(account, address(this), locked);
-                supply -= locked;
-                tcko.transfer(account, locked);
+        unchecked {
+            uint256 length = accounts0.length;
+            uint256 totalUnlocked;
+            for (uint256 i = 0; i < length; ++i) {
+                address account = accounts0[i];
+                uint256 locked = balances[account][0];
+                if (locked > 0) {
+                    delete balances[account][0];
+                    emit Transfer(account, address(this), locked);
+                    totalUnlocked += locked;
+                    tcko.transfer(account, locked);
+                }
             }
+            totalSupply -= totalUnlocked;
         }
     }
 
@@ -140,16 +155,20 @@ contract KilitliTCKO is IERC20 {
             "TCKO-k: Not matured"
         );
 
-        uint256 length = accounts1.length;
-        for (uint256 i = 0; i < length; ++i) {
-            address account = accounts1[i];
-            uint256 locked = balances[account][1];
-            if (locked > 0) {
-                delete balances[account][1];
-                emit Transfer(account, address(this), locked);
-                supply -= locked;
-                tcko.transfer(account, locked);
+        unchecked {
+            uint256 length = accounts1.length;
+            uint256 totalUnlocked;
+            for (uint256 i = 0; i < length; ++i) {
+                address account = accounts1[i];
+                uint256 locked = balances[account][1];
+                if (locked > 0) {
+                    delete balances[account][1];
+                    emit Transfer(account, address(this), locked);
+                    totalUnlocked += locked;
+                    tcko.transfer(account, locked);
+                }
             }
+            totalSupply -= totalUnlocked;
         }
     }
 
@@ -171,7 +190,7 @@ contract KilitliTCKO is IERC20 {
         // We restrict this method to `DEV_KASASI` as there may be ERC20 tokens
         // sent to this contract by accident waiting to be rescued.
         require(tx.origin == DEV_KASASI);
-        require(supply == 0);
+        require(totalSupply == 0);
         selfdestruct(DAO_KASASI);
     }
 
