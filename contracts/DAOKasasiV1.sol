@@ -6,7 +6,7 @@ pragma solidity ^0.8.14;
 import "./IDAOKasasi.sol";
 import "./KimlikDAO.sol";
 
-contract DAOKasasiV0 is IDAOKasasi {
+contract DAOKasasiV1 is IDAOKasasi {
     function redeem(
         address payable,
         uint256,
@@ -15,6 +15,9 @@ contract DAOKasasiV0 is IDAOKasasi {
 
     function distroStageUpdated(DistroStage) external {}
 
+    /**
+     * @dev Does snowtrace show this comment in write method?
+     */
     function migrateToCode(address codeAddress) external {
         require(tx.origin == DEV_KASASI);
         require(
@@ -28,7 +31,10 @@ contract DAOKasasiV0 is IDAOKasasi {
         }
     }
 
+    /**
+     * @dev Does snowtrace show this comment in read method?
+     */
     function versionHash() external pure returns (bytes32) {
-        return 0;
+        return 0x3f5e44c15812e7a9bd6973fd9e7c7da4afea4649390f7a1652d5b56caa8afeff;
     }
 }
