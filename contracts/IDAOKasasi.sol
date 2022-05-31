@@ -12,4 +12,8 @@ interface IDAOKasasi {
     ) external;
 
     function distroStageUpdated(DistroStage) external;
+
+    function versionHash() external pure returns (bytes32);
+
+    function migrateToCode(address codeAddress) external;
 }

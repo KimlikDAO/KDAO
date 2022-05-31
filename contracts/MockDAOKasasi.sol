@@ -13,7 +13,7 @@ contract MockDAOKasasi is IDAOKasasi {
         uint256 totalTokens
     ) external view {
         console.log(
-            "MockDAOKasasi.distroStageUpdated ",
+            "MockDAOKasasi.redeem()",
             redeemer,
             burnedTokens,
             totalTokens
@@ -21,6 +21,12 @@ contract MockDAOKasasi is IDAOKasasi {
     }
 
     function distroStageUpdated(DistroStage stage) external view {
-        console.log("MockDAOKasasi.distroStageUpdated ", uint256(stage));
+        console.log("MockDAOKasasi.distroStageUpdated()", uint256(stage));
     }
+
+    function versionHash() external pure returns (bytes32) {
+        return 0;
+    }
+
+    function migrateToCode(address) external {}
 }
