@@ -22,7 +22,7 @@ import "./KimlikDAO.sol";
  * transfer burns the transferred TCKOs and sends the redeemer their share of
  * the treasury. The share of the redeemer is `sentAmount / totalSupply()`
  * fraction of all the ERC20 tokens and AVAX the treasury has.
- * Note however that the market value TCKO is ought to be higher than the
+ * Note however that the market value of TCKO is ought to be higher than the
  * redemption amount, as TCKO represents a share in KimlikDAO's future cash
  * flow as well. The redemption amount is merely a lower bound on TCKOs value
  * and this functionality should only be used as a last resort.

@@ -192,6 +192,10 @@ contract KilitliTCKO is IERC20 {
         // We restrict this method to `DEV_KASASI` as there may be ERC20 tokens
         // sent to this contract by accident waiting to be rescued.
         require(msg.sender == DEV_KASASI);
+        require(
+            HasDistroStage(address(tcko)).distroStage() ==
+                DistroStage.FinalUnlock
+        );
         require(totalSupply == 0);
         selfdestruct(DAO_KASASI);
     }
