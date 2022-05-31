@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 const MILLION = ethers.BigNumber.from("1000000");
-const TCKO = MILLION;
+const TCKO = MILLION; // TCKO has 6 decimals precision
 const QUARTER_MIL = ethers.BigNumber.from("250000");
 
 async function gas(tx) {
