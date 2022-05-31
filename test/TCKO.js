@@ -123,6 +123,59 @@ describe("Minting, distribution and unlocking", function () {
 
         await balances();
     });
+
+    it("Should not allow unlocks before maturity", async function () {
+        await mintAll(MILLION);
+
+        await expect(tckok.connect(signers[10]).unlockAllEven()).to.be.reverted;
+        await expect(tckok.connect(signers[10]).unlockAllOdd()).to.be.reverted;
+
+        await tckok.connect(signers[10]).unlock(signers[10].address);
+        expect(await tcko.balanceOf(signers[10].address)).to.equal(QUARTER_MIL * TCKO);
+        expect(await tckok.balanceOf(signers[10].address)).to.equal(3 * QUARTER_MIL * TCKO);
+
+        await tcko.incrementDistroStage(1); // Presale 2
+        await expect(tckok.connect(signers[10]).unlockAllEven()).to.be.reverted;
+        await expect(tckok.connect(signers[10]).unlockAllOdd()).to.be.reverted;
+        await mintAll(MILLION);
+        await expect(tckok.connect(signers[10]).unlockAllEven()).to.be.reverted;
+        await expect(tckok.connect(signers[10]).unlockAllOdd()).to.be.reverted;
+
+        await tcko.incrementDistroStage(2); // DAOSaleStart
+        await expect(tckok.connect(signers[10]).unlockAllEven()).to.be.reverted;
+        await expect(tckok.connect(signers[10]).unlockAllOdd()).to.be.reverted;
+
+        await tcko.incrementDistroStage(3); // DAOSaleEnd
+        await expect(tckok.connect(signers[10]).unlockAllOdd()).to.be.reverted;
+        await tckok.unlockAllEven();
+
+        expect(await tcko.balanceOf(signers[2].address)).to.equal(5 * QUARTER_MIL * TCKO);
+
+
+        await tcko.incrementDistroStage(4); // DAOAMMStarted
+        await tckok.connect(signers[1]).unlock(signers[1].address);
+        expect(await tcko.balanceOf(signers[1].address)).to.equal(5 * QUARTER_MIL * TCKO);
+
+        await tcko.incrementDistroStage(5); // Presale2Unlock
+        await tckok.connect(signers[1]).unlock(signers[1].address);
+        expect(await tcko.balanceOf(signers[1].address)).to.equal(2 * MILLION * TCKO);
+
+        await tckok.unlockAllOdd();
+
+        await tcko.incrementDistroStage(6); // FinalMint
+        expect(await tcko.totalSupply()).to.equal(80 * MILLION * TCKO);
+        expect(await tckok.totalSupply()).to.equal(0 * TCKO);
+        await mintAll(MILLION);
+        await expect(tckok.connect(signers[10]).unlockAllEven()).to.be.reverted;
+        expect(await tcko.totalSupply()).to.equal(100 * MILLION * TCKO);
+        expect(await tckok.totalSupply()).to.equal(15 * MILLION * TCKO);
+
+        ethers.provider.send("evm_setNextBlockTimestamp", [new Date(2028, 02, 01).getTime()]);
+        await tcko.incrementDistroStage(7); // FinalUnlock
+
+        await tckok.unlockAllEven();
+        expect(await tckok.totalSupply()).to.equal(0 * TCKO);
+    });
 });
 
 describe("Redemption", async function () {
