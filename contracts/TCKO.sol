@@ -264,7 +264,7 @@ contract TCKO is IERC20, HasDistroStage {
      */
     function mint(address account, uint256 amount) external {
         require(
-            tx.origin == DEV_KASASI ||
+            msg.sender == DEV_KASASI ||
                 (distroStage == DistroStage.Presale2 &&
                     msg.sender == presale2Contract)
         );
@@ -287,7 +287,7 @@ contract TCKO is IERC20, HasDistroStage {
     }
 
     function setPresale2Contract(address addr) external {
-        require(tx.origin == DEV_KASASI);
+        require(msg.sender == DEV_KASASI);
         presale2Contract = addr;
     }
 
@@ -300,7 +300,7 @@ contract TCKO is IERC20, HasDistroStage {
      * @param newStage value to double check to prevent user error.
      */
     function incrementDistroStage(DistroStage newStage) external {
-        require(tx.origin == DEV_KASASI);
+        require(msg.sender == DEV_KASASI);
         // Ensure the user provided round number matches, to prevent user error.
         require(uint256(distroStage) + 1 == uint256(newStage));
         // Make sure all minting has been done for the current stage
@@ -333,9 +333,9 @@ contract TCKO is IERC20, HasDistroStage {
      * Move ERC20 tokens sent to this address by accident to `DAO_KASASI`.
      */
     function rescueToken(IERC20 token) external {
-        // We restrict this method to `DEV_KASASI` only, as we call a method
-        // of an unkown contract, which could potentially be a security risk.
-        require(tx.origin == DEV_KASASI);
+        // We restrict this method to `DEV_KASASI` only, as we call a method of
+        // an unkown contract, which could potentially be a security risk.
+        require(msg.sender == DEV_KASASI);
         token.transfer(DAO_KASASI, token.balanceOf(address(this)));
     }
 }

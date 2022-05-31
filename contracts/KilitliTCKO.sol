@@ -180,7 +180,7 @@ contract KilitliTCKO is IERC20 {
      * This method can be called only once, during the setup by `DEV_KASASI`.
      */
     function setTCKOAddress(IERC20 tckoAddress) external {
-        require(tx.origin == DEV_KASASI);
+        require(msg.sender == DEV_KASASI);
         require(address(tcko) == address(0));
         tcko = tckoAddress;
     }
@@ -191,7 +191,7 @@ contract KilitliTCKO is IERC20 {
     function selfDestruct() external {
         // We restrict this method to `DEV_KASASI` as there may be ERC20 tokens
         // sent to this contract by accident waiting to be rescued.
-        require(tx.origin == DEV_KASASI);
+        require(msg.sender == DEV_KASASI);
         require(totalSupply == 0);
         selfdestruct(DAO_KASASI);
     }
@@ -200,9 +200,9 @@ contract KilitliTCKO is IERC20 {
      * Moves ERC20 tokens sent to this address by accident to `DAO_KASASI`.
      */
     function rescueToken(IERC20 token) external {
-        // We restrict this method to `DEV_KASASI` only, as we call a method
-        // of an unkown contract, which could potentially be a security risk.
-        require(tx.origin == DEV_KASASI);
+        // We restrict this method to `DEV_KASASI` only, as we call a method of
+        // an unkown contract, which could potentially be a security risk.
+        require(msg.sender == DEV_KASASI);
         // Disable sending out TCKO to ensure the invariant TCKO.(I4).
         require(token != tcko);
         token.transfer(DAO_KASASI, token.balanceOf(address(this)));

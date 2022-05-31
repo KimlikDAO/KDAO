@@ -16,7 +16,7 @@ contract DAOKasasiV0 is IDAOKasasi {
     function distroStageUpdated(DistroStage) external {}
 
     function migrateToCode(address codeAddress) external {
-        require(tx.origin == DEV_KASASI);
+        require(msg.sender == DEV_KASASI);
         require(
             bytes32(
                 // ethers.utils.keccak256(ethers.utils.toUtf8Bytes("DAOKasasiV1"))
