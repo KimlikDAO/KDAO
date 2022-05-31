@@ -10,7 +10,7 @@ import "./KilitliTCKO.sol";
 import "./KimlikDAO.sol";
 
 /**
- * @title TCKO: KimlikDAO token
+ * @title TCKO: KimlikDAO Token
  *
  * Utility
  * =======

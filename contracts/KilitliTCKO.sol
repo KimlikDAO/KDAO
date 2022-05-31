@@ -8,6 +8,8 @@ import "./IERC20.sol";
 import "./KimlikDAO.sol";
 
 /**
+ * @title TCKO-k: KimlikDAO Locked Token
+ *
  * A KilitliTCKO represents a locked TCKO, which cannot be redeemed or
  * transferred, but turns into a TCKO automatically at the prescribed
  * `DistroStage`.
