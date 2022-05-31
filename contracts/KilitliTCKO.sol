@@ -25,7 +25,7 @@ import "./KimlikDAO.sol";
 contract KilitliTCKO is IERC20 {
     uint256 public override totalSupply;
 
-    IERC20 private tcko = IERC20(msg.sender);
+    IERC20 private tcko;
     mapping(address => uint128[2]) private balances;
     address[] private accounts0;
     // Split Presale2 accounts out, so that even if we can't unlock them in
@@ -177,10 +177,10 @@ contract KilitliTCKO is IERC20 {
      *
      * This method can be called only once, during the setup by `DEV_KASASI`.
      */
-    function setTCKOAddress(IERC20 tckoAddr) external {
+    function setTCKOAddress(IERC20 tckoAddress) external {
         require(tx.origin == DEV_KASASI);
         require(address(tcko) == address(0));
-        tcko = tckoAddr;
+        tcko = tckoAddress;
     }
 
     /**

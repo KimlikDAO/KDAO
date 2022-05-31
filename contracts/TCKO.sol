@@ -88,9 +88,9 @@ import "./KimlikDAO.sol";
  *
  * Invariants:
  *   (I1) supplyCap() <= 20M * 1M * distroRound
- *   (I2) sum_a(balanceOf[a]) + totalBurned == totalMinted
+ *   (I2) sum_a(balanceOf[a]) == totalSupply <= totalMinted
  *   (I3) totalMinted <= supplyCap()
- *   (I4) balanceOf[kilitliTCKO] == kilitliTCKO.totalSupply()
+ *   (I4) balanceOf[KILITLI_TCKO] == KilitliTCKO.totalSupply()
  *
  * (F1) follows because DistroStage has 8 values and floor(7/2) + 2 = 5.
  * Combining (F1) and (I1) gives the 100M TCKO supply cap.
@@ -99,11 +99,12 @@ contract TCKO is IERC20, HasDistroStage {
     mapping(address => uint256) public override balanceOf;
     mapping(address => mapping(address => uint256)) public override allowance;
     DistroStage public override distroStage;
+    // The total number of TCKOs in existence, locked or unlocked.
+    uint256 public override totalSupply;
+    // The total TCKOs minted so far, including ones that have been redeemed
+    // later (i.e., burned).
     uint256 public totalMinted;
-    uint256 public totalBurned;
 
-    // ERC20 contract for locked TCKOs.
-    KilitliTCKO private kilitliTCKO = new KilitliTCKO();
     address private presale2Contract;
 
     function name() external pure override returns (string memory) {
@@ -119,19 +120,23 @@ contract TCKO is IERC20, HasDistroStage {
     }
 
     /**
-     * Returns the total number of TCKOs in existence, locked or unlocked.
-     *
-     * Ensures:
-     *   (E1) totalSupply() == sum_a(balances[a])
+     * The total number of TCKOs that will be minted ever.
      */
-    function totalSupply() external view override returns (uint256) {
+    function maxSupply() external pure returns (uint256) {
+        return 100_000_000 * 1_000_000;
+    }
+
+    /**
+     * The total number of TCKOs in existence, excluding the locked ones.
+     */
+    function circulatingSupply() external view returns (uint256) {
         unchecked {
-            return totalMinted - totalBurned;
+            return totalSupply - balanceOf[KILITLI_TCKO]; // No overflow due to (I2)
         }
     }
 
     /**
-     * Returns the max number of TCKOs that can be minted at the current stage.
+     * The max number of TCKOs that can be minted at the current stage.
      *
      * Ensures:
      *   (E2) supplyCap() <= 20M * 1M * distroRound
@@ -162,9 +167,9 @@ contract TCKO is IERC20, HasDistroStage {
         require(to != address(this));
         // We disallow sending to `kilitliTCKO` as we want to enforce (I4)
         // at all times.
-        require(to != address(kilitliTCKO));
+        require(to != KILITLI_TCKO);
         uint256 fromBalance = balanceOf[msg.sender];
-        require(amount <= fromBalance);
+        require(amount <= fromBalance); // (*)
 
         unchecked {
             balanceOf[msg.sender] = fromBalance - amount;
@@ -176,11 +181,11 @@ contract TCKO is IERC20, HasDistroStage {
                 IDAOKasasi(DAO_KASASI).redeem(
                     payable(msg.sender),
                     amount,
-                    totalMinted - totalBurned
+                    totalSupply
                 );
-                totalBurned += amount;
+                totalSupply -= amount; // No overflow due to (I2)
             } else {
-                balanceOf[to] += amount;
+                balanceOf[to] += amount; // No overflow due to (*) and (I1)
             }
         }
         emit Transfer(msg.sender, to, amount);
@@ -194,7 +199,7 @@ contract TCKO is IERC20, HasDistroStage {
     ) external override returns (bool) {
         require(to != address(0));
         require(to != address(this));
-        require(to != address(kilitliTCKO)); // For (I4)
+        require(to != KILITLI_TCKO); // For (I4)
         uint256 fromBalance = balanceOf[from];
         require(amount <= fromBalance);
         uint256 senderAllowance = allowance[from][msg.sender];
@@ -207,9 +212,9 @@ contract TCKO is IERC20, HasDistroStage {
                 IDAOKasasi(DAO_KASASI).redeem(
                     payable(from),
                     amount,
-                    totalMinted - totalBurned
+                    totalSupply
                 );
-                totalBurned += amount;
+                totalSupply -= amount;
             } else {
                 balanceOf[to] += amount;
             }
@@ -263,20 +268,21 @@ contract TCKO is IERC20, HasDistroStage {
                 (distroStage == DistroStage.Presale2 &&
                     msg.sender == presale2Contract)
         );
-        require(totalMinted + amount <= supplyCap()); // Checked addition
+        require(totalMinted + amount <= supplyCap()); // Checked addition (*)
         // We need this to satisfy (I4).
-        require(account != address(kilitliTCKO));
+        require(account != KILITLI_TCKO);
         // If minted to `DAO_KASASI` unlocking would lead to redemption.
         require(account != DAO_KASASI);
         unchecked {
             uint256 unlocked = (amount + 3) / 4;
             uint256 locked = amount - unlocked;
-            totalMinted += amount;
-            balanceOf[account] += unlocked;
-            balanceOf[address(kilitliTCKO)] += locked;
+            totalMinted += amount; // No overflow due to (*) and (I1)
+            totalSupply += amount; // No overflow due to (*) and (I1)
+            balanceOf[account] += unlocked; // No overflow due to (*) and (I1)
+            balanceOf[KILITLI_TCKO] += locked; // No overflow due to (*) and (I1)
             emit Transfer(address(this), account, unlocked);
-            emit Transfer(address(this), address(kilitliTCKO), locked);
-            kilitliTCKO.mint(account, locked, distroStage);
+            emit Transfer(address(this), KILITLI_TCKO, locked);
+            KilitliTCKO(KILITLI_TCKO).mint(account, locked, distroStage);
         }
     }
 
@@ -315,6 +321,7 @@ contract TCKO is IERC20, HasDistroStage {
             unchecked {
                 uint256 amount = 20_000_000 * 1_000_000;
                 totalMinted += amount;
+                totalSupply += amount;
                 balanceOf[DAO_KASASI] += amount;
                 emit Transfer(address(this), DAO_KASASI, amount);
             }
