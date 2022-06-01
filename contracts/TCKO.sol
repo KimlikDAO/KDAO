@@ -159,13 +159,13 @@ contract TCKO is IERC20, HasDistroStage {
         override
         returns (bool)
     {
-        // Disable sending to the 0 address, which is a common software / user
+        // Disallow sending to the 0 address, which is a common software / user
         // error.
         require(to != address(0));
-        // Disable sending TCKOs to this contract address, as `rescueToken()` on
+        // Disallow sending TCKOs to this contract, as `rescueToken()` on
         // TCKOs would result in a redemption to this contract, which is *bad*.
         require(to != address(this));
-        // We disallow sending to `kilitliTCKO` as we want to enforce (I4)
+        // We disallow sending to `KILITLI_TCKO` as we want to enforce (I4)
         // at all times.
         require(to != KILITLI_TCKO);
         uint256 fromBalance = balanceOf[msg.sender];
