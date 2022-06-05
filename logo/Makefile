@@ -1,12 +1,18 @@
-all: TCKO_32.png TCKO-k_32.png
+all: TCKO_32.png TCKO-k_32.png TCKO_200.png
 
-logo32.png: source.svg
-	/Applications/Inkscape.app/Contents/MacOS/inkscape --export-type png --export-filename $@ -w 32 $^
+INKSCAPE = /Applications/Inkscape.app/Contents/MacOS/inkscape
 
-TCKO_32.png: logo32.png
-	cp $^ $@
+TCKO_32.png: source.svg Makefile
+	$(INKSCAPE) --export-type png --export-filename $@ -w 32 $<
 
-TCKO-k_32.png: source.svg
-	sed 's/"st0"/"st2"/' $^ > tmp.svg
-	/Applications/Inkscape.app/Contents/MacOS/inkscape --export-type png --export-filename $@ -w 32 tmp.svg
+TCKO_200.png: source.svg Makefile
+	$(INKSCAPE)  --export-type png --export-filename $@ -w 200 $<
+
+TCKO-k_32.png: source.svg Makefile
+	sed 's/"st0"/"st2"/' $< > tmp.svg
+	$(INKSCAPE) --export-type png --export-filename $@ -w 32 tmp.svg
 	rm -rf tmp.svg
+
+.PHONY: clean
+clean:
+	rm *.png
