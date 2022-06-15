@@ -123,7 +123,7 @@ contract TCKO is IERC20, HasDistroStage {
      * The total number of TCKOs that will be minted ever.
      */
     function maxSupply() external pure returns (uint256) {
-        return 100_000_000 * 1_000_000;
+        return 100_000_000e6;
     }
 
     /**
@@ -147,9 +147,7 @@ contract TCKO is IERC20, HasDistroStage {
     function supplyCap() public view returns (uint256) {
         unchecked {
             uint256 stage = uint256(distroStage);
-            uint256 cap = 20_000_000 *
-                1_000_000 *
-                (stage / 2 + (stage == 0 ? 1 : 2));
+            uint256 cap = 20_000_000e6 * (stage / 2 + (stage == 0 ? 1 : 2));
             return cap;
         }
     }
@@ -319,7 +317,7 @@ contract TCKO is IERC20, HasDistroStage {
             // Mint 20M TCKOs to `DAO_KASASI` bypassing the standard locked
             // ratio.
             unchecked {
-                uint256 amount = 20_000_000 * 1_000_000;
+                uint256 amount = 20_000_000e6;
                 totalMinted += amount;
                 totalSupply += amount;
                 balanceOf[DAO_KASASI] += amount;
