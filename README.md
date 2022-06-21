@@ -69,6 +69,7 @@ The unlocking schedule is as follows:
 ```
 Define:
   (D1) distroRound := distroStage / 2 + (distroStage == 0 ? 1 : 2)
+
 Facts:
   (F1) 1 <= distroRound <= 5
 

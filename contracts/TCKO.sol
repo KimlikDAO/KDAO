@@ -6,6 +6,7 @@ pragma solidity ^0.8.15;
 import "./DistroStage.sol";
 import "./IDAOKasasi.sol";
 import "./IERC20.sol";
+import "./IERC20Permit.sol";
 import "./KilitliTCKO.sol";
 import "./KimlikDAO.sol";
 
@@ -110,15 +111,14 @@ import "./KimlikDAO.sol";
  * storage as just keeping the TCKO balances. This is achieved by packing the
  * snapshot values and tick and the user balance all into the same EVM word.
  */
-contract TCKO is IERC20, HasDistroStage {
-    uint256 constant BALANCE_MASK = type(uint64).max;
-
+contract TCKO is IERC20, IERC20Permit, HasDistroStage {
     mapping(address => mapping(address => uint256)) public override allowance;
+    mapping(address => uint256) public override nonces;
     DistroStage public override distroStage;
-    // The total number of TCKOs in existence, locked or unlocked.
+    /// @notice The total number of TCKOs in existence, locked or unlocked.
     uint256 public override totalSupply;
-    // The total TCKOs minted so far, including ones that have been redeemed
-    // later (i.e., burned).
+    /// @notice The total TCKOs minted so far, including ones that have been
+    /// redeemed later (i.e., burned).
     uint256 public totalMinted;
 
     mapping(address => uint256) private balances;
@@ -236,7 +236,8 @@ contract TCKO is IERC20, HasDistroStage {
             uint256 fromBalance = balances[from];
             require(amount <= fromBalance & BALANCE_MASK);
 
-            allowance[from][msg.sender] = senderAllowance - amount;
+            if (senderAllowance != type(uint256).max)
+                allowance[from][msg.sender] = senderAllowance - amount;
             balances[from] = preserve(fromBalance) - amount;
             if (to == DAO_KASASI) {
                 IDAOKasasi(DAO_KASASI).redeem(
@@ -284,6 +285,61 @@ contract TCKO is IERC20, HasDistroStage {
         emit Approval(msg.sender, spender, newAmount);
         return true;
     }
+
+    // IERC20Permit related fields and methods
+
+    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    bytes32 public constant PERMIT_TYPEHASH =
+        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+    bytes32 public override DOMAIN_SEPARATOR;
+
+    constructor() {
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                ),
+                keccak256(bytes("TCKO")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(this)
+            )
+        );
+    }
+
+    function permit(
+        address owner,
+        address spender,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
+        require(deadline >= block.timestamp);
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                keccak256(
+                    abi.encode(
+                        PERMIT_TYPEHASH,
+                        owner,
+                        spender,
+                        amount,
+                        nonces[owner]++,
+                        deadline
+                    )
+                )
+            )
+        );
+        address recoveredAddress = ecrecover(digest, v, r, s);
+        require(recoveredAddress != address(0) && recoveredAddress == owner);
+        allowance[owner][spender] = amount;
+        emit Approval(owner, spender, amount);
+    }
+
+    // DAO related fields and methods
 
     /**
      * Mints given number of TCKOs, respecting the supply cap.
@@ -383,6 +439,9 @@ contract TCKO is IERC20, HasDistroStage {
         token.transfer(DAO_KASASI, token.balanceOf(address(this)));
     }
 
+    // Snapshot related fields and methods
+
+    uint256 constant BALANCE_MASK = type(uint64).max;
     uint256 private constant TICK0 = type(uint32).max << 224;
     uint256 private constant TICK1 = type(uint32).max << 128;
 
