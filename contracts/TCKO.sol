@@ -100,7 +100,7 @@ import "./KimlikDAO.sol";
  *
  * Voting
  * ======
- * TCKO's support two concurrent snapshots, allowing users to participate
+ * TCKOs support two concurrent snapshots, allowing users to participate
  * in two polls / voting at the same time. The voting contract should call the
  * `snapshot()` method at the beginning of the voting. When a user votes, their
  * voting weight is obtained by calling the
@@ -333,8 +333,8 @@ contract TCKO is IERC20, IERC20Permit, HasDistroStage {
                 )
             )
         );
-        address recoveredAddress = ecrecover(digest, v, r, s);
-        require(recoveredAddress != address(0) && recoveredAddress == owner);
+        address recovered = ecrecover(digest, v, r, s);
+        require(recovered != address(0) && recovered == owner);
         allowance[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
