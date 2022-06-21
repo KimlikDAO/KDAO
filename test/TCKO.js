@@ -1,8 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
+const TCKO = ethers.BigNumber.from("1000000"); // TCKO has 6 decimals precision
 const MILLION = ethers.BigNumber.from("1000000");
-const TCKO = MILLION; // TCKO has 6 decimals precision
 const QUARTER_MIL = ethers.BigNumber.from("250000");
 
 async function gas(tx) {
@@ -49,7 +49,7 @@ describe("Minting, distribution and unlocking", function () {
 
     let mintAll = async (amount) => {
         for (let i = 1; i <= 20; ++i)
-            await tcko.mint(signers[i].address, amount * MILLION);
+            await tcko.mint(signers[i].address, amount * TCKO);
     }
 
     it("Should complete all rounds", async function () {
@@ -58,7 +58,7 @@ describe("Minting, distribution and unlocking", function () {
         const tckoCap = await tcko.supplyCap();
         const tckokSupply = await tckok.totalSupply();
 
-        expect(tckoSupply).to.equal(20 * MILLION * MILLION);
+        expect(tckoSupply).to.equal(20 * MILLION * TCKO);
         expect(tckoCap).to.equal(tckoSupply);
         expect(3 * (tckoSupply - tckokSupply)).to.equal(tckokSupply);
 
