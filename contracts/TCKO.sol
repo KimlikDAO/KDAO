@@ -28,7 +28,9 @@ import "./KimlikDAO.sol";
  * and this functionality should only be used as a last resort.
  *
  * Investment decisions are made through proposals to swap some treasury assets
- * to other assets on a DEX, which are voted on-chain by all TCKO holders.
+ * to other assets on a DEX, which are voted on-chain by all TCKO holders. Once
+ * a voting has been completed, the decided upon trade is executed by the
+ * `kimlikdao.eth` contract using the nominated DEX.
  *
  * Combined with a TCKT, TCKO gives a person voting rights for non-financial
  * decisions of KimlikDAO also; however in such decisions the voting weight is
@@ -63,8 +65,8 @@ import "./KimlikDAO.sol";
  * Since the `releaseRound` cannot be incremented beyond 5, this ensures that
  * there can be at most 100M TCKOs minted.
  *
- * Locking
- * =======
+ * Lockup
+ * ======
  * Each mint to external parties results in some unlocked and some locked
  * TCKOs, and the ratio is fixed globally. Only the 40M TCKOs minted to
  * `kimlikdao.eth` across rounds 3 and 4 are fully unlocked.
@@ -90,7 +92,7 @@ import "./KimlikDAO.sol";
  *   (I1) supplyCap() <= 20M * 1M * distroRound
  *   (I2) sum_a(balanceOf(a)) == totalSupply <= totalMinted
  *   (I3) totalMinted <= supplyCap()
- *   (I4) balanceOf[KILITLI_TCKO] == KilitliTCKO.totalSupply()
+ *   (I4) balanceOf(KILITLI_TCKO) == KilitliTCKO.totalSupply()
  *
  * (F1) follows because DistroStage has 8 values and floor(7/2) + 2 = 5.
  * Combining (F1) and (I1) gives the 100M TCKO supply cap.
@@ -102,10 +104,10 @@ import "./KimlikDAO.sol";
  * `snapshot()` method at the beginning of the voting. When a user votes, their
  * voting weight is obtained by calling the
  *
- *   `snapshot0BalanceOf(address)` or `snapshot1BalanceOf(adress)`
+ *   `snapshot0BalanceOf(address)` or `snapshot1BalanceOf(address)`
  *
  * methods. All operations are constant time, moreover use the same amount of
- * storage as just keeping the TCKO balance. This is achieved by packing the
+ * storage as just keeping the TCKO balances. This is achieved by packing the
  * snapshot values and tick and the user balance all into the same EVM word.
  */
 contract TCKO is IERC20, HasDistroStage {
@@ -417,7 +419,7 @@ contract TCKO is IERC20, HasDistroStage {
             if (msg.sender == votingContract0) {
                 ticks += 1 << 224;
             } else if (msg.sender == votingContract1) {
-                ticks = ((ticks + 1) << 128) & ~uint256(1 << 161);
+                ticks = (ticks + (1 << 128)) & ~uint256(1 << 161);
             } else revert();
         }
     }
