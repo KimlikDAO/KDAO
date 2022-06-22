@@ -113,7 +113,6 @@ import "./KimlikDAO.sol";
  */
 contract TCKO is IERC20, IERC20Permit, HasDistroStage {
     mapping(address => mapping(address => uint256)) public override allowance;
-    mapping(address => uint256) public override nonces;
     DistroStage public override distroStage;
     /// @notice The total number of TCKOs in existence, locked or unlocked.
     uint256 public override totalSupply;
@@ -146,8 +145,7 @@ contract TCKO is IERC20, IERC20Permit, HasDistroStage {
     }
 
     /**
-     * @notice The total number of TCKOs in existence, excluding the locked
-     * ones.
+     * @notice The total number of TCKOs in existence minus the locked ones.
      */
     function circulatingSupply() external view returns (uint256) {
         unchecked {
@@ -163,13 +161,12 @@ contract TCKO is IERC20, IERC20Permit, HasDistroStage {
      *   (E2) supplyCap() <= 20M * 1M * distroRound
      *
      * Recall that distroRound := distroStage / 2 + distroStage == 0 ? 1 : 2,
-     * so combined with distroRound <= 5, we get 100M TCKO supply cap.
+     * so combined with distroRound <= 5, we get the 100M TCKO supply cap.
      */
     function supplyCap() public view returns (uint256) {
         unchecked {
             uint256 stage = uint256(distroStage);
-            uint256 cap = 20_000_000e6 * (stage / 2 + (stage == 0 ? 1 : 2));
-            return cap;
+            return 20_000_000e6 * (stage / 2 + (stage == 0 ? 1 : 2));
         }
     }
 
@@ -292,6 +289,8 @@ contract TCKO is IERC20, IERC20Permit, HasDistroStage {
     bytes32 public constant PERMIT_TYPEHASH =
         0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
     bytes32 public override DOMAIN_SEPARATOR;
+
+    mapping(address => uint256) public override nonces;
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(
@@ -441,7 +440,7 @@ contract TCKO is IERC20, IERC20Permit, HasDistroStage {
 
     // Snapshot related fields and methods
 
-    uint256 constant BALANCE_MASK = type(uint64).max;
+    uint256 private constant BALANCE_MASK = type(uint64).max;
     uint256 private constant TICK0 = type(uint32).max << 224;
     uint256 private constant TICK1 = type(uint32).max << 128;
 
