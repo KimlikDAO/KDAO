@@ -1,14 +1,13 @@
 //SPDX-License-Identifier: MIT
 //🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿
 
-pragma solidity ^0.8.15;
+pragma solidity 0.8.15;
 
-import "./DistroStage.sol";
-import "./IDAOKasasi.sol";
-import "./IERC20.sol";
-import "./IERC20Permit.sol";
 import "./KilitliTCKO.sol";
-import "./KimlikDAO.sol";
+import "interfaces/Addresses.sol";
+import "interfaces/DistroStage.sol";
+import "interfaces/IDAOKasasi.sol";
+import "interfaces/IERC20Permit.sol";
 
 /**
  * @title TCKO: KimlikDAO Token
@@ -102,8 +101,8 @@ import "./KimlikDAO.sol";
  * ======
  * TCKOs support two concurrent snapshots, allowing users to participate
  * in two polls / voting at the same time. The voting contract should call the
- * `snapshot()` method at the beginning of the voting. When a user votes, their
- * voting weight is obtained by calling the
+ * `snapshot0()` method at the beginning of the voting. When a user votes,
+ * their voting weight is obtained by calling the
  *
  *   `snapshot0BalanceOf(address)` or `snapshot1BalanceOf(address)`
  *
@@ -111,7 +110,7 @@ import "./KimlikDAO.sol";
  * storage as just keeping the TCKO balances. This is achieved by packing the
  * snapshot values and tick and the user balance all into the same EVM word.
  */
-contract TCKO is IERC20, IERC20Permit, HasDistroStage {
+contract TCKO is IERC20Permit, HasDistroStage {
     mapping(address => mapping(address => uint256)) public override allowance;
     DistroStage public override distroStage;
     /// @notice The total number of TCKOs in existence, locked or unlocked.
@@ -316,24 +315,26 @@ contract TCKO is IERC20, IERC20Permit, HasDistroStage {
         bytes32 s
     ) external {
         require(deadline >= block.timestamp);
-        bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                keccak256(
-                    abi.encode(
-                        PERMIT_TYPEHASH,
-                        owner,
-                        spender,
-                        amount,
-                        nonces[owner]++,
-                        deadline
+        unchecked {
+            bytes32 digest = keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    DOMAIN_SEPARATOR,
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH,
+                            owner,
+                            spender,
+                            amount,
+                            nonces[owner]++,
+                            deadline
+                        )
                     )
                 )
-            )
-        );
-        address recovered = ecrecover(digest, v, r, s);
-        require(recovered != address(0) && recovered == owner);
+            );
+            address recovered = ecrecover(digest, v, r, s);
+            require(recovered != address(0) && recovered == owner);
+        }
         allowance[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
@@ -378,16 +379,6 @@ contract TCKO is IERC20, IERC20Permit, HasDistroStage {
     function setPresale2Contract(address addr) external {
         require(msg.sender == DEV_KASASI);
         presale2Contract = addr;
-    }
-
-    function setVotingContract0(address addr) external {
-        require(msg.sender == DEV_KASASI);
-        votingContract0 = addr;
-    }
-
-    function setVotingContract1(address addr) external {
-        require(msg.sender == DEV_KASASI);
-        votingContract1 = addr;
     }
 
     /**
@@ -472,14 +463,28 @@ contract TCKO is IERC20, IERC20Permit, HasDistroStage {
         }
     }
 
-    function snapshot() external {
+    function snapshot0() external {
+        require(msg.sender == votingContract0);
         unchecked {
-            if (msg.sender == votingContract0) {
-                ticks += 1 << 224;
-            } else if (msg.sender == votingContract1) {
-                ticks = (ticks + (1 << 128)) & ~uint256(1 << 161);
-            } else revert();
+            ticks += 1 << 224;
         }
+    }
+
+    function snapshot1() external {
+        require(msg.sender == votingContract1);
+        unchecked {
+            ticks = (ticks + (1 << 128)) & ~uint256(1 << 161);
+        }
+    }
+
+    function setVotingContract0(address addr) external {
+        require(msg.sender == DEV_KASASI);
+        votingContract0 = addr;
+    }
+
+    function setVotingContract1(address addr) external {
+        require(msg.sender == DEV_KASASI);
+        votingContract1 = addr;
     }
 
     function preserve(uint256 balance) internal view returns (uint256) {

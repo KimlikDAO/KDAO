@@ -1,11 +1,11 @@
 //SPDX-License-Identifier: MIT
 //🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿
 
-pragma solidity ^0.8.15;
+pragma solidity 0.8.15;
 
-import "./DistroStage.sol";
-import "./IERC20.sol";
-import "./KimlikDAO.sol";
+import "interfaces/Addresses.sol";
+import "interfaces/DistroStage.sol";
+import "interfaces/IERC20.sol";
 
 /**
  * @title TCKO-k: KimlikDAO Locked Token
