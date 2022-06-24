@@ -92,7 +92,7 @@ import "interfaces/IERC20Permit.sol";
  *   (I1) supplyCap() <= 20M * 1M * distroRound
  *   (I2) sum_a(balanceOf(a)) == totalSupply <= totalMinted
  *   (I3) totalMinted <= supplyCap()
- *   (I4) balanceOf(KILITLI_TCKO) == KilitliTCKO.totalSupply()
+ *   (I4) balanceOf(TCKOK_ADDR) == KilitliTCKO.totalSupply()
  *
  * (F1) follows because DistroStage has 8 values and floor(7/2) + 2 = 5.
  * Combining (F1) and (I1) gives the 100M TCKO supply cap.
@@ -149,7 +149,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
     function circulatingSupply() external view returns (uint256) {
         unchecked {
             // No overflow due to (I2)
-            return totalSupply - (balances[KILITLI_TCKO] & BALANCE_MASK);
+            return totalSupply - (balances[TCKOK_ADDR] & BALANCE_MASK);
         }
     }
 
@@ -189,9 +189,9 @@ contract TCKO is IERC20Permit, HasDistroStage {
         // Disallow sending TCKOs to this contract, as `rescueToken()` on
         // TCKOs would result in a redemption to this contract, which is *bad*.
         require(to != address(this));
-        // We disallow sending to `KILITLI_TCKO` as we want to enforce (I4)
+        // We disallow sending to `TCKOK_ADDR` as we want to enforce (I4)
         // at all times.
-        require(to != KILITLI_TCKO);
+        require(to != TCKOK_ADDR);
         unchecked {
             uint256 fromBalance = balances[msg.sender];
             require(amount <= fromBalance & BALANCE_MASK); // (*)
@@ -222,11 +222,11 @@ contract TCKO is IERC20Permit, HasDistroStage {
         uint256 amount
     ) external override returns (bool) {
         require(to != address(0) && to != address(this));
-        require(to != KILITLI_TCKO); // For (I4)
+        require(to != TCKOK_ADDR); // For (I4)
 
         uint256 senderAllowance = allowance[from][msg.sender];
         if (senderAllowance != type(uint256).max)
-            allowance[from][msg.sender] = senderAllowance - amount;
+            allowance[from][msg.sender] = senderAllowance - amount; // Checked
 
         unchecked {
             uint256 fromBalance = balances[from];
@@ -355,7 +355,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         );
         require(totalMinted + amount <= supplyCap()); // Checked addition (*)
         // We need this to satisfy (I4).
-        require(account != KILITLI_TCKO);
+        require(account != TCKOK_ADDR);
         // If minted to `DAO_KASASI` unlocking would lead to redemption.
         require(account != DAO_KASASI);
         unchecked {
@@ -366,10 +366,10 @@ contract TCKO is IERC20Permit, HasDistroStage {
             // No overflow due to (*) and (I1)
             balances[account] = preserve(balances[account]) + unlocked;
             // No overflow due to (*) and (I1)
-            balances[KILITLI_TCKO] = preserve(balances[KILITLI_TCKO]) + locked;
+            balances[TCKOK_ADDR] = preserve(balances[TCKOK_ADDR]) + locked;
             emit Transfer(address(this), account, unlocked);
-            emit Transfer(address(this), KILITLI_TCKO, locked);
-            KilitliTCKO(KILITLI_TCKO).mint(account, locked, distroStage);
+            emit Transfer(address(this), TCKOK_ADDR, locked);
+            KilitliTCKO(TCKOK_ADDR).mint(account, locked, distroStage);
         }
     }
 

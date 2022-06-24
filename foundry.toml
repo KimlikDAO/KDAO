@@ -1,4 +1,4 @@
 [default]
 src = 'contracts'
 optimizer = true
-optimizer_runs = 1000
+optimizer_runs = 10000
