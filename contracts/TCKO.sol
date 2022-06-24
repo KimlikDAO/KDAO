@@ -195,7 +195,6 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             uint256 fromBalance = balances[msg.sender];
             require(amount <= fromBalance & BALANCE_MASK); // (*)
-
             balances[msg.sender] = preserve(fromBalance) - amount;
             // If sent to `DAO_KASASI`, the tokens are burned and the portion
             // of the treasury is sent back to the msg.sender (i.e., redeemed).
@@ -222,18 +221,16 @@ contract TCKO is IERC20Permit, HasDistroStage {
         address to,
         uint256 amount
     ) external override returns (bool) {
-        require(to != address(0));
-        require(to != address(this));
+        require(to != address(0) && to != address(this));
         require(to != KILITLI_TCKO); // For (I4)
+
         uint256 senderAllowance = allowance[from][msg.sender];
-        require(amount <= senderAllowance);
+        if (senderAllowance != type(uint256).max)
+            allowance[from][msg.sender] = senderAllowance - amount;
 
         unchecked {
             uint256 fromBalance = balances[from];
             require(amount <= fromBalance & BALANCE_MASK);
-
-            if (senderAllowance != type(uint256).max)
-                allowance[from][msg.sender] = senderAllowance - amount;
             balances[from] = preserve(fromBalance) - amount;
             if (to == DAO_KASASI) {
                 IDAOKasasi(DAO_KASASI).redeem(
