@@ -495,14 +495,14 @@ contract TCKO is IERC20Permit, HasDistroStage {
             // ticks.tick0 doesn't match balance.tick0; we need to preserve the
             // current balance.
             if ((balance ^ tick) & TICK0 != 0) {
-                balance &= ~(type(uint96).max << 160);
+                balance &= type(uint256).max >> 96;
                 balance |= (balance & BALANCE_MASK) << 160;
                 balance |= tick & TICK0;
             }
             // ticks.tick1 doesn't match balance.tick1; we need to preserve the
             // current balance.
             if ((balance ^ tick) & TICK1 != 0) {
-                balance &= ~(type(uint96).max << 64);
+                balance &= (type(uint256).max << 160) | type(uint64).max;
                 balance |= (balance & BALANCE_MASK) << 64;
                 balance |= tick & TICK1;
             }
