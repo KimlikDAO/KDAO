@@ -347,7 +347,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
      * To mint TCKOs to `DAO_KASASI`, a separate code path is used, in which
      * all TCKOs are unlocked.
      */
-    function mint(address account, uint256 amount) external {
+    function mint(address account, uint256 amount) public {
         require(
             msg.sender == DEV_KASASI ||
                 (distroStage == DistroStage.Presale2 &&
@@ -370,6 +370,13 @@ contract TCKO is IERC20Permit, HasDistroStage {
             emit Transfer(address(this), account, unlocked);
             emit Transfer(address(this), TCKOK_ADDR, locked);
             KilitliTCKO(TCKOK_ADDR).mint(account, locked, distroStage);
+        }
+    }
+
+    function mintBulk(uint256[] calldata hodlers) external {
+        require(msg.sender == DEV_KASASI);
+        for (uint256 i = 0; i < hodlers.length; ++i) {
+            mint(address(uint160(hodlers[i])), hodlers[i] >> 160);
         }
     }
 
