@@ -366,9 +366,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
             // No overflow due to (*) and (I1)
             balances[account] = preserve(balances[account], t) + unlocked;
             // No overflow due to (*) and (I1)
-            balances[TCKOK_ADDR] =
-                preserve(balances[TCKOK_ADDR], t) +
-                locked;
+            balances[TCKOK_ADDR] = preserve(balances[TCKOK_ADDR], t) + locked;
             emit Transfer(address(this), account, unlocked);
             emit Transfer(address(this), TCKOK_ADDR, locked);
             KilitliTCKO(TCKOK_ADDR).mint(account, locked, distroStage);
@@ -433,8 +431,8 @@ contract TCKO is IERC20Permit, HasDistroStage {
     // Snapshot related fields and methods
 
     uint256 private constant BALANCE_MASK = type(uint64).max;
-    uint256 private constant TICK0 = type(uint32).max << 224;
-    uint256 private constant TICK1 = type(uint32).max << 128;
+    uint256 private constant TICK0 = type(uint256).max << 224;
+    uint256 private constant TICK1 = TICK0 >> 96;
 
     uint256 private t;
 
@@ -447,7 +445,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             return
                 BALANCE_MASK &
-                (((balance ^ t) | TICK0 == 0) ? (balance >> 160) : balance);
+                (((balance ^ t) & TICK0 == 0) ? (balance >> 160) : balance);
         }
     }
 
@@ -460,7 +458,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             return
                 BALANCE_MASK &
-                (((balance ^ t) | TICK1 == 0) ? (balance >> 64) : balance);
+                (((balance ^ t) & TICK1 == 0) ? (balance >> 64) : balance);
         }
     }
 
@@ -496,14 +494,14 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             // ticks.tick0 doesn't match balance.tick0; we need to preserve the
             // current balance.
-            if ((balance ^ tick) | TICK0 != 0) {
+            if ((balance ^ tick) & TICK0 != 0) {
                 balance &= ~(type(uint96).max << 160);
                 balance |= (balance & BALANCE_MASK) << 160;
                 balance |= tick & TICK0;
             }
             // ticks.tick1 doesn't match balance.tick1; we need to preserve the
             // current balance.
-            if ((balance ^ tick) | TICK1 != 0) {
+            if ((balance ^ tick) & TICK1 != 0) {
                 balance &= ~(type(uint96).max << 64);
                 balance |= (balance & BALANCE_MASK) << 64;
                 balance |= tick & TICK1;

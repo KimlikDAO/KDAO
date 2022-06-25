@@ -2,9 +2,9 @@
 
 pragma solidity 0.8.15;
 
-import "forge-std/Test.sol";
-import "contracts/TCKO.sol";
 import "./MockDAOKasasi.sol";
+import "contracts/TCKO.sol";
+import "forge-std/Test.sol";
 
 contract TCKOTest is Test {
     TCKO private tcko;
@@ -248,5 +248,55 @@ contract TCKOTest is Test {
 
         assertEq(tcko.balanceOf(vm.addr(1)), 250e9 - 1);
         assertEq(tcko.balanceOf(vm.addr(2)), 250e9 + 1);
+    }
+
+    function testSnapshot0Preserved() public {
+        tcko.setVotingContract0(address(this));
+        tcko.snapshot0();
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(2), 250e9);
+
+        assertEq(tcko.balanceOf(vm.addr(2)), 500e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 250e9);
+        assertEq(tcko.balanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(3));
+        tcko.transfer(vm.addr(1), 100e9);
+
+        assertEq(tcko.balanceOf(vm.addr(3)), 150e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(3)), 250e9);
+        assertEq(tcko.balanceOf(vm.addr(1)), 100e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        tcko.snapshot0();
+        assertEq(tcko.balanceOf(vm.addr(1)), 100e9);
+        assertEq(tcko.balanceOf(vm.addr(2)), 500e9);
+        assertEq(tcko.balanceOf(vm.addr(3)), 150e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 100e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 500e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(3)), 150e9);
+
+        vm.startPrank(vm.addr(2));
+        tcko.transfer(vm.addr(1), 50e9);
+        tcko.transfer(vm.addr(3), 50e9);
+        tcko.transfer(vm.addr(1), 50e9);
+        tcko.transfer(vm.addr(3), 50e9);
+        tcko.transfer(vm.addr(1), 50e9);
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.balanceOf(vm.addr(2)), 250e9);
+        assertEq(tcko.balanceOf(vm.addr(3)), 250e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 100e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 500e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(3)), 150e9);
+        vm.stopPrank();
+
+        tcko.snapshot0();
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 250e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(3)), 250e9);
     }
 }
