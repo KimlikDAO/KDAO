@@ -226,4 +226,27 @@ contract TCKOTest is Test {
         assertEq(tcko.balanceOf(vm.addr(2)), 250e9);
         assertEq(tcko.balanceOf(vm.addr(3)), 500e9);
     }
+
+    function testUsersCanAdjustAllowance() public {
+        vm.startPrank(vm.addr(1));
+        tcko.increaseAllowance(vm.addr(2), 3);
+
+        vm.expectRevert(stdError.arithmeticError);
+        tcko.increaseAllowance(vm.addr(2), type(uint256).max);
+
+        vm.expectRevert(stdError.arithmeticError);
+        tcko.decreaseAllowance(vm.addr(2), 4);
+
+        tcko.decreaseAllowance(vm.addr(2), 2);
+        vm.stopPrank();
+
+        vm.startPrank(vm.addr(2));
+        vm.expectRevert(stdError.arithmeticError);
+        tcko.transferFrom(vm.addr(1), vm.addr(2), 2);
+
+        tcko.transferFrom(vm.addr(1), vm.addr(2), 1);
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9 - 1);
+        assertEq(tcko.balanceOf(vm.addr(2)), 250e9 + 1);
+    }
 }

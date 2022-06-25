@@ -195,7 +195,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             uint256 fromBalance = balances[msg.sender];
             require(amount <= fromBalance & BALANCE_MASK); // (*)
-            balances[msg.sender] = preserve(fromBalance) - amount;
+            balances[msg.sender] = preserve(fromBalance, t) - amount;
             // If sent to `DAO_KASASI`, the tokens are burned and the portion
             // of the treasury is sent back to the msg.sender (i.e., redeemed).
             // The redemption amount is `amount / totalSupply()` of all
@@ -209,7 +209,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
                 totalSupply -= amount; // No overflow due to (I2)
             } else {
                 // No overflow due to (*) and (I1)
-                balances[to] = preserve(balances[to]) + amount;
+                balances[to] = preserve(balances[to], t) + amount;
             }
         }
         emit Transfer(msg.sender, to, amount);
@@ -231,7 +231,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             uint256 fromBalance = balances[from];
             require(amount <= fromBalance & BALANCE_MASK);
-            balances[from] = preserve(fromBalance) - amount;
+            balances[from] = preserve(fromBalance, t) - amount;
             if (to == DAO_KASASI) {
                 IDAOKasasi(DAO_KASASI).redeem(
                     payable(from),
@@ -240,7 +240,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
                 );
                 totalSupply -= amount;
             } else {
-                balances[to] = preserve(balances[to]) + amount;
+                balances[to] = preserve(balances[to], t) + amount;
             }
         }
         emit Transfer(from, to, amount);
@@ -364,9 +364,11 @@ contract TCKO is IERC20Permit, HasDistroStage {
             totalMinted += amount; // No overflow due to (*) and (I1)
             totalSupply += amount; // No overflow due to (*) and (I1)
             // No overflow due to (*) and (I1)
-            balances[account] = preserve(balances[account]) + unlocked;
+            balances[account] = preserve(balances[account], t) + unlocked;
             // No overflow due to (*) and (I1)
-            balances[TCKOK_ADDR] = preserve(balances[TCKOK_ADDR]) + locked;
+            balances[TCKOK_ADDR] =
+                preserve(balances[TCKOK_ADDR], t) +
+                locked;
             emit Transfer(address(this), account, unlocked);
             emit Transfer(address(this), TCKOK_ADDR, locked);
             KilitliTCKO(TCKOK_ADDR).mint(account, locked, distroStage);
@@ -409,7 +411,9 @@ contract TCKO is IERC20Permit, HasDistroStage {
                 uint256 amount = 20_000_000e6;
                 totalMinted += amount;
                 totalSupply += amount;
-                balances[DAO_KASASI] = preserve(balances[DAO_KASASI]) + amount;
+                balances[DAO_KASASI] =
+                    preserve(balances[DAO_KASASI], t) +
+                    amount;
                 emit Transfer(address(this), DAO_KASASI, amount);
             }
         }
@@ -432,7 +436,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
     uint256 private constant TICK0 = type(uint32).max << 224;
     uint256 private constant TICK1 = type(uint32).max << 128;
 
-    uint256 private ticks;
+    uint256 private t;
 
     function snapshot0BalanceOf(address account)
         external
@@ -443,7 +447,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             return
                 BALANCE_MASK &
-                (((balance ^ ticks) | TICK0 == 0) ? (balance >> 160) : balance);
+                (((balance ^ t) | TICK0 == 0) ? (balance >> 160) : balance);
         }
     }
 
@@ -456,21 +460,21 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             return
                 BALANCE_MASK &
-                (((balance ^ ticks) | TICK1 == 0) ? (balance >> 64) : balance);
+                (((balance ^ t) | TICK1 == 0) ? (balance >> 64) : balance);
         }
     }
 
     function snapshot0() external {
         require(msg.sender == votingContract0);
         unchecked {
-            ticks += 1 << 224;
+            t += 1 << 224;
         }
     }
 
     function snapshot1() external {
         require(msg.sender == votingContract1);
         unchecked {
-            ticks = (ticks + (1 << 128)) & ~uint256(1 << 161);
+            t = (t + (1 << 128)) & ~uint256(1 << 161);
         }
     }
 
@@ -484,21 +488,25 @@ contract TCKO is IERC20Permit, HasDistroStage {
         votingContract1 = addr;
     }
 
-    function preserve(uint256 balance) internal view returns (uint256) {
+    function preserve(uint256 balance, uint256 tick)
+        internal
+        pure
+        returns (uint256)
+    {
         unchecked {
             // ticks.tick0 doesn't match balance.tick0; we need to preserve the
             // current balance.
-            if ((balance ^ ticks) | TICK0 != 0) {
+            if ((balance ^ tick) | TICK0 != 0) {
                 balance &= ~(type(uint96).max << 160);
                 balance |= (balance & BALANCE_MASK) << 160;
-                balance |= ticks & TICK0;
+                balance |= tick & TICK0;
             }
             // ticks.tick1 doesn't match balance.tick1; we need to preserve the
             // current balance.
-            if ((balance ^ ticks) | TICK1 != 0) {
+            if ((balance ^ tick) | TICK1 != 0) {
                 balance &= ~(type(uint96).max << 64);
                 balance |= (balance & BALANCE_MASK) << 64;
-                balance |= ticks & TICK1;
+                balance |= tick & TICK1;
             }
             return balance;
         }
