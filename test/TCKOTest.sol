@@ -12,15 +12,23 @@ contract TCKOTest is Test {
     IDAOKasasi private daoKasasi;
 
     function setUp() public {
+        vm.prank(TCKO_DEPLOYER);
         tcko = new TCKO();
+        console.log(address(tcko));
+
+        vm.prank(TCKOK_DEPLOYER);
         tckok = new KilitliTCKO();
+
+        vm.prank(DAO_KASASI_DEPLOYER);
         daoKasasi = new MockDAOKasasi();
 
         mintAll(1e12);
     }
 
     function mintAll(uint256 amount) public {
+        vm.startPrank(DEV_KASASI);
         for (uint256 i = 1; i <= 20; ++i) tcko.mint(vm.addr(i), amount);
+        vm.stopPrank();
     }
 
     function testShouldCompleteAllRounds() public {
@@ -33,18 +41,21 @@ contract TCKOTest is Test {
         assertEq(tcko.balanceOf(vm.addr(1)), 0);
         assertEq(tcko.balanceOf(vm.addr(2)), 500_000e6);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.Presale2);
         mintAll(1e12);
 
         assertEq(tcko.totalSupply(), 40e12);
         assertEq(tckok.totalSupply(), 30e12);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.DAOSaleStart);
 
         assertEq(tcko.totalSupply(), 60e12);
         assertEq(tckok.totalSupply(), 30e12);
         assertEq(tcko.balanceOf(DAO_KASASI), 20e12);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.DAOSaleEnd);
 
         tckok.unlock(vm.addr(1));
@@ -58,23 +69,27 @@ contract TCKOTest is Test {
         assertEq(tckok.balanceOf(vm.addr(1)), 750e9);
         assertEq(tckok.balanceOf(vm.addr(2)), 750e9);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.DAOAMMStart);
 
         assertEq(tcko.totalSupply(), 80e12);
         assertEq(tckok.totalSupply(), 15e12);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.Presale2Unlock);
 
         tckok.unlockAllOdd();
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.FinalMint);
-
         mintAll(1e12);
+
         tckok.unlock(vm.addr(1));
 
         assertEq(tckok.balanceOf(vm.addr(1)), 750e9);
 
         vm.warp(1925097600);
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.FinalUnlock);
         tckok.unlock(vm.addr(1));
 
@@ -100,6 +115,7 @@ contract TCKOTest is Test {
         assertEq(tcko.balanceOf(vm.addr(10)), 250e9);
         assertEq(tckok.balanceOf(vm.addr(10)), 750e9);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.Presale2);
 
         vm.expectRevert("TCKO-k: Not matured");
@@ -114,6 +130,7 @@ contract TCKOTest is Test {
         vm.expectRevert("TCKO-k: Not matured");
         tckok.unlockAllOdd();
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.DAOSaleStart);
 
         vm.expectRevert("TCKO-k: Not matured");
@@ -121,6 +138,7 @@ contract TCKOTest is Test {
         vm.expectRevert("TCKO-k: Not matured");
         tckok.unlockAllOdd();
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.DAOSaleEnd);
 
         vm.expectRevert("TCKO-k: Not matured");
@@ -129,16 +147,20 @@ contract TCKOTest is Test {
 
         assertEq(tcko.balanceOf(vm.addr(2)), 1250e9);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.DAOAMMStart);
         tckok.unlock(vm.addr(1));
 
         assertEq(tcko.balanceOf(vm.addr(1)), 1250e9);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.Presale2Unlock);
         tckok.unlock(vm.addr(1));
         assertEq(tcko.balanceOf(vm.addr(1)), 2e12);
 
         tckok.unlockAllOdd();
+
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.FinalMint);
 
         assertEq(tcko.totalSupply(), 80e12);
@@ -153,6 +175,7 @@ contract TCKOTest is Test {
 
         vm.warp(1835470800000);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.FinalUnlock);
         tckok.unlockAllEven();
 
@@ -172,6 +195,7 @@ contract TCKOTest is Test {
         assertEq(tckok.totalSupply(), 15e12);
         assertEq(tcko.totalMinted(), 20e12);
 
+        vm.prank(DEV_KASASI);
         tcko.incrementDistroStage(DistroStage.Presale2);
         mintAll(1e12);
 
@@ -251,6 +275,7 @@ contract TCKOTest is Test {
     }
 
     function testSnapshot0Preserved() public {
+        vm.prank(DEV_KASASI);
         tcko.setVotingContract0(address(this));
         tcko.snapshot0();
 
@@ -301,6 +326,7 @@ contract TCKOTest is Test {
     }
 
     function testSnapshot0PreservedOnSelfTransfer() public {
+        vm.prank(DEV_KASASI);
         tcko.setVotingContract0(address(this));
         tcko.snapshot0();
 
@@ -331,8 +357,9 @@ contract TCKOTest is Test {
         uint256 amount
     ) public {
         vm.assume(from % 20 != to % 20);
-
         amount %= 250e9;
+
+        vm.prank(DEV_KASASI);
         tcko.setVotingContract0(address(this));
         tcko.snapshot0();
 
@@ -346,6 +373,7 @@ contract TCKOTest is Test {
     }
 
     function testSnapshot1Preserved() public {
+        vm.prank(DEV_KASASI);
         tcko.setVotingContract1(address(this));
         tcko.snapshot1();
 
@@ -396,6 +424,7 @@ contract TCKOTest is Test {
     }
 
     function testSnapshot1PreservedOnSelfTransfer() public {
+        vm.prank(DEV_KASASI);
         tcko.setVotingContract1(address(this));
         tcko.snapshot1();
 
@@ -428,6 +457,7 @@ contract TCKOTest is Test {
         vm.assume(from % 20 != to % 20);
 
         amount %= 250e9;
+        vm.prank(DEV_KASASI);
         tcko.setVotingContract1(address(this));
         tcko.snapshot1();
 
