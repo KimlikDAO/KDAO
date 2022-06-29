@@ -286,18 +286,63 @@ contract TCKOTest is Test {
         tcko.transfer(vm.addr(1), 50e9);
         tcko.transfer(vm.addr(3), 50e9);
         tcko.transfer(vm.addr(1), 50e9);
+        vm.stopPrank();
         assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
         assertEq(tcko.balanceOf(vm.addr(2)), 250e9);
         assertEq(tcko.balanceOf(vm.addr(3)), 250e9);
         assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 100e9);
         assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 500e9);
         assertEq(tcko.snapshot0BalanceOf(vm.addr(3)), 150e9);
-        vm.stopPrank();
 
         tcko.snapshot0();
         assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
         assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 250e9);
         assertEq(tcko.snapshot0BalanceOf(vm.addr(3)), 250e9);
+    }
+
+    function testSnapshot0PreservedOnSelfTransfer() public {
+        tcko.setVotingContract0(address(this));
+        tcko.snapshot0();
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(1), 250e9);
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        tcko.snapshot0();
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(1), 100e9);
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
+    }
+
+    function testSnapshot0Fuzz(
+        uint8 from,
+        uint8 to,
+        uint256 amount
+    ) public {
+        vm.assume(from % 20 != to % 20);
+
+        amount %= 250e9;
+        tcko.setVotingContract0(address(this));
+        tcko.snapshot0();
+
+        vm.prank(vm.addr((from % 20) + 1));
+        tcko.transfer(vm.addr((to % 20) + 1), amount);
+
+        assertEq(tcko.balanceOf(vm.addr((from % 20) + 1)), 250e9 - amount);
+        assertEq(tcko.balanceOf(vm.addr((to % 20) + 1)), 250e9 + amount);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr((from % 20) + 1)), 250e9);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr((to % 20) + 1)), 250e9);
     }
 
     function testSnapshot1Preserved() public {
@@ -348,5 +393,50 @@ contract TCKOTest is Test {
         assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 250e9);
         assertEq(tcko.snapshot1BalanceOf(vm.addr(2)), 250e9);
         assertEq(tcko.snapshot1BalanceOf(vm.addr(3)), 250e9);
+    }
+
+    function testSnapshot1PreservedOnSelfTransfer() public {
+        tcko.setVotingContract1(address(this));
+        tcko.snapshot1();
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(1), 250e9);
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 250e9);
+
+        tcko.snapshot1();
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(1), 100e9);
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 250e9);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 250e9);
+    }
+
+    function testSnapshot1Fuzz(
+        uint8 from,
+        uint8 to,
+        uint256 amount
+    ) public {
+        vm.assume(from % 20 != to % 20);
+
+        amount %= 250e9;
+        tcko.setVotingContract1(address(this));
+        tcko.snapshot1();
+
+        vm.prank(vm.addr((from % 20) + 1));
+        tcko.transfer(vm.addr((to % 20) + 1), amount);
+
+        assertEq(tcko.balanceOf(vm.addr((from % 20) + 1)), 250e9 - amount);
+        assertEq(tcko.balanceOf(vm.addr((to % 20) + 1)), 250e9 + amount);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr((from % 20) + 1)), 250e9);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr((to % 20) + 1)), 250e9);
     }
 }
