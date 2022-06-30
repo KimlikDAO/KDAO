@@ -87,7 +87,7 @@ contract KilitliTCKO is IERC20 {
         uint256 amount,
         DistroStage stage
     ) external {
-        require(msg.sender == TCKO_);
+        require(msg.sender == TCKO_ADDR);
         unchecked {
             if (uint256(stage) & 1 == 0) {
                 accounts0.push(account);
@@ -103,7 +103,7 @@ contract KilitliTCKO is IERC20 {
 
     function unlock(address account) public returns (bool) {
         unchecked {
-            DistroStage stage = HasDistroStage(TCKO_).distroStage();
+            DistroStage stage = HasDistroStage(TCKO_ADDR).distroStage();
             uint256 locked = 0;
             if (
                 stage >= DistroStage.DAOSaleEnd &&
@@ -119,7 +119,7 @@ contract KilitliTCKO is IERC20 {
             if (locked > 0) {
                 emit Transfer(account, address(this), locked);
                 totalSupply -= locked;
-                IERC20(TCKO_).transfer(account, locked);
+                IERC20(TCKO_ADDR).transfer(account, locked);
                 return true;
             }
             return false;
@@ -127,7 +127,7 @@ contract KilitliTCKO is IERC20 {
     }
 
     function unlockAllEven() external {
-        DistroStage stage = HasDistroStage(TCKO_).distroStage();
+        DistroStage stage = HasDistroStage(TCKO_ADDR).distroStage();
         require(
             stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint,
             "TCKO-k: Not matured"
@@ -142,7 +142,7 @@ contract KilitliTCKO is IERC20 {
                     delete balances[account][0];
                     emit Transfer(account, address(this), locked);
                     totalUnlocked += locked;
-                    IERC20(TCKO_).transfer(account, locked);
+                    IERC20(TCKO_ADDR).transfer(account, locked);
                 }
             }
             totalSupply -= totalUnlocked;
@@ -151,7 +151,8 @@ contract KilitliTCKO is IERC20 {
 
     function unlockAllOdd() external {
         require(
-            HasDistroStage(TCKO_).distroStage() >= DistroStage.Presale2Unlock,
+            HasDistroStage(TCKO_ADDR).distroStage() >=
+                DistroStage.Presale2Unlock,
             "TCKO-k: Not matured"
         );
 
@@ -165,7 +166,7 @@ contract KilitliTCKO is IERC20 {
                     delete balances[account][1];
                     emit Transfer(account, address(this), locked);
                     totalUnlocked += locked;
-                    IERC20(TCKO_).transfer(account, locked);
+                    IERC20(TCKO_ADDR).transfer(account, locked);
                 }
             }
             totalSupply -= totalUnlocked;
@@ -179,7 +180,9 @@ contract KilitliTCKO is IERC20 {
         // We restrict this method to `DEV_KASASI` as there may be ERC20 tokens
         // sent to this contract by accident waiting to be rescued.
         require(msg.sender == DEV_KASASI);
-        require(HasDistroStage(TCKO_).distroStage() == DistroStage.FinalUnlock);
+        require(
+            HasDistroStage(TCKO_ADDR).distroStage() == DistroStage.FinalUnlock
+        );
         require(totalSupply == 0);
         selfdestruct(DAO_KASASI);
     }
@@ -192,7 +195,7 @@ contract KilitliTCKO is IERC20 {
         // an unkown contract, which could potentially be a security risk.
         require(msg.sender == DEV_KASASI);
         // Disable sending out TCKO to ensure the invariant TCKO.(I4).
-        require(address(token) != TCKO_);
+        require(address(token) != TCKO_ADDR);
         token.transfer(DAO_KASASI, token.balanceOf(address(this)));
     }
 }

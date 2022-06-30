@@ -31,6 +31,48 @@ contract TCKOTest is Test {
         vm.stopPrank();
     }
 
+    function testDAOAuthentication() public {
+        vm.expectRevert();
+        tcko.mint(vm.addr(1), 1);
+
+        uint256[] memory accounts = new uint256[](1);
+        accounts[0] = (1 << 160) | 1;
+        vm.expectRevert();
+        tcko.mintBulk(accounts);
+
+        vm.expectRevert();
+        tcko.setPresale2Contract(vm.addr(1337));
+
+        vm.expectRevert();
+        tcko.incrementDistroStage(DistroStage.Presale2);
+    }
+
+    function testSnapshotAuthentication() public {
+        vm.expectRevert();
+        tcko.setVotingContract0(vm.addr(1337));
+
+        vm.prank(DEV_KASASI);
+        tcko.setVotingContract0(vm.addr(1337));
+
+        vm.expectRevert();
+        tcko.setVotingContract1(vm.addr(7331));
+
+        vm.prank(DEV_KASASI);
+        tcko.setVotingContract1(vm.addr(7331));
+
+        vm.expectRevert();
+        tcko.snapshot0();
+
+        vm.prank(vm.addr(1337));
+        tcko.snapshot0();
+
+        vm.expectRevert();
+        tcko.snapshot1();
+
+        vm.prank(vm.addr(7331));
+        tcko.snapshot1();
+    }
+
     function testShouldCompleteAllRounds() public {
         assertEq(tcko.totalSupply(), 20e12);
         assertEq(tckok.totalSupply(), 15e12);
