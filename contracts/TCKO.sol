@@ -113,16 +113,15 @@ import "interfaces/IERC20Permit.sol";
 contract TCKO is IERC20Permit, HasDistroStage {
     mapping(address => mapping(address => uint256)) public override allowance;
     DistroStage public override distroStage;
+
     /// @notice The total number of TCKOs in existence, locked or unlocked.
     uint256 public override totalSupply;
+
     /// @notice The total TCKOs minted so far, including ones that have been
     /// redeemed later (i.e., burned).
     uint256 public totalMinted;
 
     mapping(address => uint256) private balances;
-    address private presale2Contract;
-    address private votingContract0;
-    address private votingContract1;
 
     function name() external pure override returns (string memory) {
         return "KimlikDAO Tokeni";
@@ -178,6 +177,20 @@ contract TCKO is IERC20Permit, HasDistroStage {
         return balances[account] & BALANCE_MASK;
     }
 
+    /**
+     * @notice Transfer some TCKOs to a given address.
+     *
+     * If the `to` address is `DAO_KASASI`, the transfer is understood as a
+     * redemption: the sent TCKOs are burned and the portion of `DAO_KASASI`
+     * corresponding to the sent TCKOs are given back to the `msg.sender`.
+     *
+     * Sending to the 0 address is disallowed to prevent user error. Sending to
+     * this contract and the `KilitliTCKO` contract are disallowed to maintain
+     * our invariants.
+     *
+     * @param to               the address of the recipient.
+     * @param amount           amount of TCKOs * 1e6.
+     */
     function transfer(address to, uint256 amount)
         external
         override
@@ -279,7 +292,11 @@ contract TCKO is IERC20Permit, HasDistroStage {
         return true;
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    //
     // IERC20Permit related fields and methods
+    //
+    ///////////////////////////////////////////////////////////////////////////
 
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH =
@@ -336,7 +353,13 @@ contract TCKO is IERC20Permit, HasDistroStage {
         emit Approval(owner, spender, amount);
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    //
     // DAO related fields and methods
+    //
+    ///////////////////////////////////////////////////////////////////////////
+
+    address private presale2Contract;
 
     /**
      * Mints given number of TCKOs, respecting the supply cap.
@@ -435,12 +458,18 @@ contract TCKO is IERC20Permit, HasDistroStage {
         token.transfer(DAO_KASASI, token.balanceOf(address(this)));
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    //
     // Snapshot related fields and methods
+    //
+    ///////////////////////////////////////////////////////////////////////////
 
     uint256 private constant BALANCE_MASK = type(uint64).max;
     uint256 private constant TICK0 = type(uint256).max << 224;
     uint256 private constant TICK1 = TICK0 >> 96;
 
+    address private votingContract0;
+    address private votingContract1;
     uint256 private t;
 
     function snapshot0BalanceOf(address account)
