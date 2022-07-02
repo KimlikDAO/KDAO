@@ -262,6 +262,11 @@ contract TCKOTest is Test {
         assertEq(tcko.balanceOf(vm.addr(20)), 500e9);
     }
 
+    function testTransferGas() public {
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(2), 250e9);
+    }
+
     function testPreventOverspending() public {
         vm.prank(vm.addr(1));
         vm.expectRevert();
@@ -510,5 +515,57 @@ contract TCKOTest is Test {
         assertEq(tcko.balanceOf(vm.addr((to % 20) + 1)), 250e9 + amount);
         assertEq(tcko.snapshot1BalanceOf(vm.addr((from % 20) + 1)), 250e9);
         assertEq(tcko.snapshot1BalanceOf(vm.addr((to % 20) + 1)), 250e9);
+    }
+
+    function authorizePayment(
+        uint256 ownerPrivateKey,
+        address spender,
+        uint256 amount,
+        uint256 deadline,
+        uint256 nonce
+    )
+        internal
+        returns (
+            uint8,
+            bytes32,
+            bytes32
+        )
+    {
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                tcko.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9,
+                        vm.addr(ownerPrivateKey),
+                        spender,
+                        amount,
+                        nonce,
+                        deadline
+                    )
+                )
+            )
+        );
+        return vm.sign(ownerPrivateKey, digest);
+    }
+
+    function testPermit() public {
+        vm.prank(vm.addr(2));
+        vm.expectRevert(stdError.arithmeticError);
+        tcko.transferFrom(vm.addr(1), vm.addr(2), 250e9);
+
+        uint256 time = block.timestamp + 1000;
+        (uint8 v, bytes32 r, bytes32 s) = authorizePayment(
+            1,
+            vm.addr(2),
+            250e9,
+            time,
+            0
+        );
+        tcko.permit(vm.addr(1), vm.addr(2), 250e9, time, v, r, s);
+        vm.prank(vm.addr(2));
+        tcko.transferFrom(vm.addr(1), vm.addr(2), 250e9);
+        assertEq(tcko.balanceOf(vm.addr(2)), 500e9);
     }
 }

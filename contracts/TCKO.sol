@@ -112,7 +112,6 @@ import "interfaces/IERC20Permit.sol";
  */
 contract TCKO is IERC20Permit, HasDistroStage {
     mapping(address => mapping(address => uint256)) public override allowance;
-    DistroStage public override distroStage;
 
     /// @notice The total number of TCKOs in existence, locked or unlocked.
     uint256 public override totalSupply;
@@ -314,7 +313,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
                 keccak256(bytes("TCKO")),
                 keccak256(bytes("1")),
                 block.chainid,
-                address(this)
+                TCKO_ADDR
             )
         );
     }
@@ -359,7 +358,49 @@ contract TCKO is IERC20Permit, HasDistroStage {
     //
     ///////////////////////////////////////////////////////////////////////////
 
+    DistroStage public override distroStage;
+
     address private presale2Contract;
+
+    /**
+     * Advances the distribution stage.
+     *
+     * If we've advanced to DAOSaleStart stage or DAOAMMStart stage,
+     * automatically mints 20M unlocked TCKOs to `DAO_KASASI`.
+     *
+     * @param newStage value to double check to prevent user error.
+     */
+    function incrementDistroStage(DistroStage newStage) external {
+        require(msg.sender == DEV_KASASI);
+        // Ensure the user provided round number matches, to prevent user error.
+        require(uint256(distroStage) + 1 == uint256(newStage));
+        // Make sure all minting has been done for the current stage
+        require(supplyCap() == totalMinted, "Mint all!");
+        // Ensure that we cannot go to FinalUnlock before 2028.
+        if (newStage == DistroStage.FinalUnlock) {
+            require(block.timestamp > 1832306400);
+        }
+
+        distroStage = newStage;
+
+        if (
+            newStage == DistroStage.DAOSaleStart ||
+            newStage == DistroStage.DAOAMMStart
+        ) {
+            // Mint 20M TCKOs to `DAO_KASASI` bypassing the standard locked
+            // ratio.
+            unchecked {
+                uint256 amount = 20_000_000e6;
+                totalMinted += amount;
+                totalSupply += amount;
+                balances[DAO_KASASI] =
+                    preserve(balances[DAO_KASASI], t) +
+                    amount;
+                emit Transfer(address(this), DAO_KASASI, amount);
+            }
+        }
+        IDAOKasasi(DAO_KASASI).distroStageUpdated(newStage);
+    }
 
     /**
      * Mints given number of TCKOs, respecting the supply cap.
@@ -406,46 +447,6 @@ contract TCKO is IERC20Permit, HasDistroStage {
     function setPresale2Contract(address addr) external {
         require(msg.sender == DEV_KASASI);
         presale2Contract = addr;
-    }
-
-    /**
-     * Advances the distribution stage.
-     *
-     * If we've advanced to DAOSaleStart stage or DAOAMMStart stage,
-     * automatically mints 20M unlocked TCKOs to `DAO_KASASI`.
-     *
-     * @param newStage value to double check to prevent user error.
-     */
-    function incrementDistroStage(DistroStage newStage) external {
-        require(msg.sender == DEV_KASASI);
-        // Ensure the user provided round number matches, to prevent user error.
-        require(uint256(distroStage) + 1 == uint256(newStage));
-        // Make sure all minting has been done for the current stage
-        require(supplyCap() == totalMinted, "Mint all!");
-        // Ensure that we cannot go to FinalUnlock before 2028.
-        if (newStage == DistroStage.FinalUnlock) {
-            require(block.timestamp > 1832306400);
-        }
-
-        distroStage = newStage;
-
-        if (
-            newStage == DistroStage.DAOSaleStart ||
-            newStage == DistroStage.DAOAMMStart
-        ) {
-            // Mint 20M TCKOs to `DAO_KASASI` bypassing the standard locked
-            // ratio.
-            unchecked {
-                uint256 amount = 20_000_000e6;
-                totalMinted += amount;
-                totalSupply += amount;
-                balances[DAO_KASASI] =
-                    preserve(balances[DAO_KASASI], t) +
-                    amount;
-                emit Transfer(address(this), DAO_KASASI, amount);
-            }
-        }
-        IDAOKasasi(DAO_KASASI).distroStageUpdated(newStage);
     }
 
     /**
@@ -528,14 +529,14 @@ contract TCKO is IERC20Permit, HasDistroStage {
         returns (uint256)
     {
         unchecked {
-            // ticks.tick0 doesn't match balance.tick0; we need to preserve the
+            // tick.tick0 doesn't match balance.tick0; we need to preserve the
             // current balance.
             if ((balance ^ tick) & TICK0 != 0) {
                 balance &= type(uint256).max >> 96;
                 balance |= (balance & BALANCE_MASK) << 160;
                 balance |= tick & TICK0;
             }
-            // ticks.tick1 doesn't match balance.tick1; we need to preserve the
+            // tick.tick1 doesn't match balance.tick1; we need to preserve the
             // current balance.
             if ((balance ^ tick) & TICK1 != 0) {
                 balance &= (type(uint256).max << 160) | type(uint64).max;
