@@ -14,7 +14,6 @@ contract TCKOTest is Test {
     function setUp() public {
         vm.prank(TCKO_DEPLOYER);
         tcko = new TCKO();
-        console.log(address(tcko));
 
         vm.prank(TCKOK_DEPLOYER);
         tckok = new KilitliTCKO();
