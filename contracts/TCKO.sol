@@ -205,6 +205,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         // at all times.
         require(to != TCKOK);
         unchecked {
+            uint256 t = tick;
             uint256 fromBalance = balances[msg.sender];
             require(amount <= fromBalance & BALANCE_MASK); // (*)
             balances[msg.sender] = preserve(fromBalance, t) - amount;
@@ -241,6 +242,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
             allowance[from][msg.sender] = senderAllowance - amount; // Checked
 
         unchecked {
+            uint256 t = tick;
             uint256 fromBalance = balances[from];
             require(amount <= fromBalance & BALANCE_MASK);
             balances[from] = preserve(fromBalance, t) - amount;
@@ -297,22 +299,21 @@ contract TCKO is IERC20Permit, HasDistroStage {
     //
     ///////////////////////////////////////////////////////////////////////////
 
+    bytes32 public constant override DOMAIN_SEPARATOR =
+        keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                ),
+                keccak256(bytes("TCKO")),
+                keccak256(bytes("1")),
+                43114,
+                TCKO_ADDR
+            )
+        );
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH =
         0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
-    // keccak256(
-    //     abi.encode(
-    //         keccak256(
-    //             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-    //         ),
-    //         keccak256(bytes("TCKO")),
-    //         keccak256(bytes("1")),
-    //         43114,
-    //         TCKO_ADDR
-    //     )
-    // ));
-    bytes32 public constant override DOMAIN_SEPARATOR =
-        0xd3b6088e7d58a5742b419d3f22999e21c76cce42f96b85b3fdc54662eb2d445c;
 
     mapping(address => uint256) public override nonces;
 
@@ -392,7 +393,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
                 totalMinted += amount;
                 totalSupply += amount;
                 balances[DAO_KASASI] =
-                    preserve(balances[DAO_KASASI], t) +
+                    preserve(balances[DAO_KASASI], tick) +
                     amount;
                 emit Transfer(address(this), DAO_KASASI, amount);
             }
@@ -409,12 +410,14 @@ contract TCKO is IERC20Permit, HasDistroStage {
      * To mint TCKOs to `DAO_KASASI`, a separate code path is used, in which
      * all TCKOs are unlocked.
      */
-    function mint(address account, uint256 amount) public {
+    function mint(uint256 amountAccount) public {
         require(
             msg.sender == DEV_KASASI ||
                 (distroStage == DistroStage.Presale2 &&
                     msg.sender == presale2Contract)
         );
+        uint256 amount = amountAccount >> 160;
+        address account = address(uint160(amountAccount));
         require(totalMinted + amount <= supplyCap()); // Checked addition (*)
         // We need this to satisfy (I4).
         require(account != TCKOK);
@@ -423,6 +426,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             uint256 unlocked = (amount + 3) / 4;
             uint256 locked = amount - unlocked;
+            uint256 t = tick;
             totalMinted += amount; // No overflow due to (*) and (I1)
             totalSupply += amount; // No overflow due to (*) and (I1)
             // No overflow due to (*) and (I1)
@@ -435,11 +439,23 @@ contract TCKO is IERC20Permit, HasDistroStage {
         }
     }
 
-    function mintBulk(uint256[] calldata hodlers) external {
+    function mintBulk(uint256[10] calldata amountAccount) external {
         require(msg.sender == DEV_KASASI);
-        for (uint256 i = 0; i < hodlers.length; ++i) {
-            mint(address(uint160(hodlers[i])), hodlers[i] >> 160);
-        }
+        mint(amountAccount[0]);
+        mint(amountAccount[1]);
+        mint(amountAccount[2]);
+        mint(amountAccount[3]);
+        mint(amountAccount[4]);
+        if (amountAccount[5] == 0) return;
+        mint(amountAccount[5]);
+        if (amountAccount[6] == 0) return;
+        mint(amountAccount[6]);
+        if (amountAccount[7] == 0) return;
+        mint(amountAccount[7]);
+        if (amountAccount[8] == 0) return;
+        mint(amountAccount[8]);
+        if (amountAccount[9] == 0) return;
+        mint(amountAccount[9]);
     }
 
     function setPresale2Contract(address addr) external {
@@ -469,7 +485,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
 
     address private votingContract0;
     address private votingContract1;
-    uint256 private t;
+    uint256 private tick;
 
     function snapshot0BalanceOf(address account)
         external
@@ -480,7 +496,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             return
                 BALANCE_MASK &
-                (((balance ^ t) & TICK0 == 0) ? (balance >> 160) : balance);
+                (((balance ^ tick) & TICK0 == 0) ? (balance >> 160) : balance);
         }
     }
 
@@ -493,21 +509,21 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             return
                 BALANCE_MASK &
-                (((balance ^ t) & TICK1 == 0) ? (balance >> 64) : balance);
+                (((balance ^ tick) & TICK1 == 0) ? (balance >> 64) : balance);
         }
     }
 
     function snapshot0() external {
         require(msg.sender == votingContract0);
         unchecked {
-            t += 1 << 224;
+            tick += 1 << 224;
         }
     }
 
     function snapshot1() external {
         require(msg.sender == votingContract1);
         unchecked {
-            t = (t + (1 << 128)) & ~uint256(1 << 161);
+            tick = (tick + (1 << 128)) & ~uint256(1 << 161);
         }
     }
 
@@ -521,7 +537,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         votingContract1 = addr;
     }
 
-    function preserve(uint256 balance, uint256 tick)
+    function preserve(uint256 balance, uint256 t)
         internal
         pure
         returns (uint256)
@@ -529,17 +545,17 @@ contract TCKO is IERC20Permit, HasDistroStage {
         unchecked {
             // tick.tick0 doesn't match balance.tick0; we need to preserve the
             // current balance.
-            if ((balance ^ tick) & TICK0 != 0) {
+            if ((balance ^ t) & TICK0 != 0) {
                 balance &= type(uint256).max >> 96;
                 balance |= (balance & BALANCE_MASK) << 160;
-                balance |= tick & TICK0;
+                balance |= t & TICK0;
             }
             // tick.tick1 doesn't match balance.tick1; we need to preserve the
             // current balance.
-            if ((balance ^ tick) & TICK1 != 0) {
+            if ((balance ^ t) & TICK1 != 0) {
                 balance &= (type(uint256).max << 160) | type(uint64).max;
                 balance |= (balance & BALANCE_MASK) << 64;
-                balance |= tick & TICK1;
+                balance |= t & TICK1;
             }
             return balance;
         }

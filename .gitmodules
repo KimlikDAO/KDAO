@@ -4,3 +4,4 @@
 [submodule "lib/interfaces"]
 	path = lib/interfaces
 	url = https://github.com/KimlikDAO/interfaces
+	ignore = dirty

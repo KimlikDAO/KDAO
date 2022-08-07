@@ -26,16 +26,28 @@ contract TCKOTest is Test {
 
     function mintAll(uint256 amount) public {
         vm.startPrank(DEV_KASASI);
-        for (uint256 i = 1; i <= 20; ++i) tcko.mint(vm.addr(i), amount);
+        for (uint256 i = 1; i <= 20; ++i)
+            tcko.mint((amount << 160) | uint160(vm.addr(i)));
         vm.stopPrank();
     }
 
     function testDAOAuthentication() public {
         vm.expectRevert();
-        tcko.mint(vm.addr(1), 1);
+        tcko.mint((uint256(1) << 160) | uint160(vm.addr(1)));
 
-        uint256[] memory accounts = new uint256[](1);
-        accounts[0] = (1 << 160) | 1;
+        uint256[10] memory accounts = [
+            (uint256(1) << 160) | 1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+        ];
+
         vm.expectRevert();
         tcko.mintBulk(accounts);
 
