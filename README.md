@@ -83,13 +83,15 @@ Invariants:
 Combining (F1) and (I1) gives the 100M TCKO supply cap.
 
 ### Voting
-TCKO's support two concurrent snapshots, allowing users to participate
-in two polls / voting at the same time. The voting contract should call the
-`snapshot()` method at the beginning of the voting. When a user votes, their
-voting weight is obtained by calling the
+TCKOs support three concurrent snapshots, allowing users to participate
+in three polls / voting at the same time. The voting contract should call
+the `snapshot0()` method at the beginning of the voting. When a user votes,
+their voting weight is obtained by calling the
 
-> `snapshot0BalanceOf(address)` or `snapshot1BalanceOf(address)`
+> `snapshot0BalanceOf(address)`,
+> `snapshot1BalanceOf(address)` or
+> `snapshot2BalanceOf(address)`
 
 methods. All operations are constant time, moreover use the same amount of
 storage as just keeping the TCKO balances. This is achieved by packing the
-snapshot values and tick and the user balance all into the same EVM word.
+snapshot values, ticks and the user balance all into the same EVM word.
