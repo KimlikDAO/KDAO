@@ -157,4 +157,50 @@ contract TCKOSnapshotTest is Test {
             balance = balance - amount;
         }
     }
+
+    function testSnapshotValuesArePreserved() public {
+        uint256 balance = 250_000e6;
+        for (uint256 i = 1; i <= 20; ++i) {
+            vm.prank(OYLAMA);
+            tcko.snapshot1();
+
+            uint256 amount = i * 10e6;
+            for (uint256 x = 1; x <= 20; ++x) {
+                vm.prank(vm.addr(x));
+                tcko.transfer(vm.addr((x % 20) + 1), amount);
+            }
+
+            for (uint256 y = 1; y <= 20; ++y) {
+                assertEq(tcko.balanceOf(vm.addr(i)), balance);
+                assertEq(tcko.snapshot1BalanceOf(vm.addr(y)), balance);
+            }
+
+            for (uint256 x = 1; x <= 20; ++x) {
+                vm.prank(vm.addr(x));
+                tcko.transfer(vm.addr(50), amount);
+            }
+
+            for (uint256 y = 1; y <= 20; ++y) {
+                assertEq(tcko.balanceOf(vm.addr(i)), balance - amount);
+                assertEq(tcko.snapshot1BalanceOf(vm.addr(y)), balance);
+            }
+
+            for (uint256 x = 1; x <= 20; ++x) {
+                vm.prank(vm.addr(50));
+                tcko.transfer(vm.addr(x), amount);
+            }
+
+            for (uint256 y = 1; y <= 20; ++y) {
+                assertEq(tcko.balanceOf(vm.addr(i)), balance);
+                assertEq(tcko.snapshot1BalanceOf(vm.addr(y)), balance);
+            }
+
+            for (uint256 x = 1; x <= 20; ++x) {
+                vm.prank(vm.addr(x));
+                tcko.transfer(vm.addr(50), amount);
+            }
+
+            balance = balance - amount;
+        }
+    }
 }
