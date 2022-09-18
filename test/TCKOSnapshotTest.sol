@@ -203,4 +203,135 @@ contract TCKOSnapshotTest is Test {
             balance = balance - amount;
         }
     }
+
+    function testSnapshot0WrapsAround() public {
+        vm.prank(OYLAMA);
+        tcko.snapshot0();
+        vm.store(
+            address(tcko),
+            bytes32(uint256(6)),
+            bytes32(((uint256(1) << 24) - 1) << 232)
+        );
+
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(2), 250_000e6);
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 0);
+        assertEq(tcko.balanceOf(vm.addr(2)), 500_000e6);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250_000e6);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 250_000e6);
+
+        vm.prank(OYLAMA);
+        tcko.snapshot0();
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 500_000e6);
+
+        vm.prank(vm.addr(2));
+        tcko.transfer(vm.addr(1), 250_000e6);
+        assertEq(tcko.balanceOf(vm.addr(1)), 250_000e6);
+        assertEq(tcko.balanceOf(vm.addr(2)), 250_000e6);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 500_000e6);
+
+        vm.prank(OYLAMA);
+        tcko.snapshot0();
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250_000e6);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 250_000e6);
+    }
+
+    function testSnapshot1WrapsAround() public {
+        vm.prank(OYLAMA);
+        tcko.snapshot0();
+        assertEq(
+            uint256(vm.load(address(tcko), bytes32(uint256(6)))) >> 232,
+            1
+        );
+        vm.store(
+            address(tcko),
+            bytes32(uint256(6)),
+            bytes32(((uint256(1) << 21) - 1) << 212)
+        );
+        assertEq(
+            uint256(vm.load(address(tcko), bytes32(uint256(6)))) >> 232,
+            1
+        );
+
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(2), 250_000e6);
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 0);
+        assertEq(tcko.balanceOf(vm.addr(2)), 500_000e6);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 250_000e6);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(2)), 250_000e6);
+
+        vm.prank(OYLAMA);
+        tcko.snapshot1();
+
+        assertEq(
+            uint256(vm.load(address(tcko), bytes32(uint256(6)))) >> 232,
+            1
+        );
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(2)), 500_000e6);
+
+        vm.prank(vm.addr(2));
+        tcko.transfer(vm.addr(1), 250_000e6);
+        assertEq(tcko.balanceOf(vm.addr(1)), 250_000e6);
+        assertEq(tcko.balanceOf(vm.addr(2)), 250_000e6);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(2)), 500_000e6);
+
+        vm.prank(OYLAMA);
+        tcko.snapshot1();
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 250_000e6);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(2)), 250_000e6);
+    }
+
+    function testSnapshot2WrapsAround() public {
+        vm.prank(OYLAMA);
+        tcko.snapshot1();
+        assertEq(
+            uint256(vm.load(address(tcko), bytes32(uint256(6)))) >> 212,
+            1
+        );
+        vm.store(
+            address(tcko),
+            bytes32(uint256(6)),
+            bytes32(((uint256(1) << 21) - 1) << 192)
+        );
+        assertEq(
+            uint256(vm.load(address(tcko), bytes32(uint256(6)))) >> 212,
+            1
+        );
+
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(2), 250_000e6);
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 0);
+        assertEq(tcko.balanceOf(vm.addr(2)), 500_000e6);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(1)), 250_000e6);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(2)), 250_000e6);
+
+        vm.prank(OYLAMA);
+        tcko.snapshot2();
+
+        assertEq(
+            uint256(vm.load(address(tcko), bytes32(uint256(6)))) >> 212,
+            1
+        );
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(2)), 500_000e6);
+
+        vm.prank(vm.addr(2));
+        tcko.transfer(vm.addr(1), 250_000e6);
+        assertEq(tcko.balanceOf(vm.addr(1)), 250_000e6);
+        assertEq(tcko.balanceOf(vm.addr(2)), 250_000e6);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(2)), 500_000e6);
+
+        vm.prank(OYLAMA);
+        tcko.snapshot2();
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(1)), 250_000e6);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(2)), 250_000e6);
+    }
 }
