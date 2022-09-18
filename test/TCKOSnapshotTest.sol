@@ -97,7 +97,7 @@ contract TCKOSnapshotTest is Test {
         assertEq(tcko.snapshot2BalanceOf(vm.addr(2)), 500_000e6);
     }
 
-    function testAllSnapshotsTogether() public {
+    function testAllSnapshotsRepeatedly() public {
         vm.prank(vm.addr(1));
         tcko.transfer(vm.addr(2), 250_000e6);
 
@@ -136,5 +136,25 @@ contract TCKOSnapshotTest is Test {
         assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 500_000e6);
         assertEq(tcko.snapshot1BalanceOf(vm.addr(4)), 250_000e6);
         assertEq(tcko.snapshot1BalanceOf(vm.addr(2)), 750_000e6);
+    }
+
+    function testUsingSnapshotMultipleTimes() public {
+        uint256 balance = tcko.balanceOf(vm.addr(1));
+        for (uint256 i = 1; i <= 10; ++i) {
+            vm.prank(OYLAMA);
+            tcko.snapshot0();
+
+            uint256 amount = i * 10e6;
+            for (uint256 x = 1; x <= 20; ++x) {
+                vm.prank(vm.addr(x));
+                tcko.transfer(vm.addr(50), amount);
+            }
+
+            for (uint256 y = 1; y <= 20; ++y) {
+                assertEq(tcko.snapshot0BalanceOf(vm.addr(y)), balance);
+            }
+
+            balance = balance - amount;
+        }
     }
 }
