@@ -1,5 +1,6 @@
 .DS_Store
 .vscode
+*.info
 artifacts
 cache
 node_modules

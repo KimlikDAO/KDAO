@@ -669,4 +669,8 @@ contract TCKOTest is Test {
         tcko.transferFrom(vm.addr(1), vm.addr(2), 250e9);
         assertEq(tcko.balanceOf(vm.addr(2)), 500e9);
     }
+
+    function testTokenMethods() external {
+        assertEq(tcko.decimals(), tckok.decimals());
+    }
 }
