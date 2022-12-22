@@ -4,6 +4,8 @@
 ### Utility
 1 TCKO represents a share of all assets of the KimlikDAO treasury located
 at `kimlikdao.eth` and 1 voting right for all treasury investment decisions.
+Further, KimlikDAO protocol nodes need to stake TCKOs to get promoted to a
+signer node.
 
 Any TCKO holder can redeem their share of the DAO treasury assets by
 transferring their TCKOs to `kimlikdao.eth` on Avalanche C-chain. Such a
@@ -13,7 +15,7 @@ fraction of all the ERC20 tokens and AVAX the treasury has.
 Note however that the market value of TCKO is ought to be higher than the
 redemption amount, as TCKO represents a share in KimlikDAO's future cash
 flow as well. The redemption amount is merely a lower bound on TCKOs value
-and this functionality should only be used as a last resort.
+and the `redeem` functionality should only be used as a last resort.
  
 Investment decisions are made through proposals to swap some treasury assets
 to other assets on a DEX, which are voted on-chain by all TCKO holders. Once

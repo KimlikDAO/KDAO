@@ -4,10 +4,11 @@
 pragma solidity 0.8.17;
 
 import "./KilitliTCKO.sol";
-import "interfaces/Addresses.sol";
-import "interfaces/DistroStage.sol";
-import "interfaces/IDAOKasasi.sol";
-import "interfaces/IERC20Permit.sol";
+import {OYLAMA} from "interfaces/Addresses.sol";
+import {DistroStage} from "interfaces/DistroStage.sol";
+import {IDAOKasasi} from "interfaces/IDAOKasasi.sol";
+import {IERC20Permit} from "interfaces/IERC20Permit.sol";
+import {IERC20Snapshot3} from "interfaces/IERC20Snapshot3.sol";
 
 /**
  * @title TCKO: KimlikDAO Token
@@ -16,6 +17,8 @@ import "interfaces/IERC20Permit.sol";
  * =======
  * 1 TCKO represents a share of all assets of the KimlikDAO treasury located
  * at `kimlikdao.eth` and 1 voting right for all treasury investment decisions.
+ * Further, KimlikDAO protocol nodes need to stake TCKOs to get promoted to a
+ * signer node.
  *
  * Any TCKO holder can redeem their share of the DAO treasury assets by
  * transferring their TCKOs to `kimlikdao.eth` on Avalanche C-chain. Such a
@@ -25,7 +28,7 @@ import "interfaces/IERC20Permit.sol";
  * Note however that the market value of TCKO is ought to be higher than the
  * redemption amount, as TCKO represents a share in KimlikDAO's future cash
  * flow as well. The redemption amount is merely a lower bound on TCKOs value
- * and this functionality should only be used as a last resort.
+ * and the `redeem` functionality should only be used as a last resort.
  *
  * Investment decisions are made through proposals to swap some treasury assets
  * to other assets on a DEX, which are voted on-chain by all TCKO holders. Once
@@ -112,7 +115,7 @@ import "interfaces/IERC20Permit.sol";
  * storage as just keeping the TCKO balances. This is achieved by packing the
  * snapshot values, ticks and the user balance all into the same EVM word.
  */
-contract TCKO is IERC20Permit, HasDistroStage {
+contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
     mapping(address => mapping(address => uint256)) public override allowance;
 
     /// @notice The total number of TCKOs in existence, locked or unlocked.
@@ -496,6 +499,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
     function snapshot0BalanceOf(address account)
         external
         view
+        override
         returns (uint256)
     {
         uint256 balance = balances[account];
@@ -506,40 +510,84 @@ contract TCKO is IERC20Permit, HasDistroStage {
         }
     }
 
+    function consumeSnapshot0Balance(address account)
+        external
+        override
+        returns (uint256)
+    {
+        uint256 info = balances[account];
+        unchecked {
+            uint256 balance = BALANCE_MASK &
+                (((info ^ tick) & TICK0 == 0) ? (info >> 48) : info);
+            balances[account] = info & ~TICK0;
+            return balance;
+        }
+    }
+
     function snapshot1BalanceOf(address account)
         external
         view
+        override
         returns (uint256)
     {
-        uint256 balance = balances[account];
+        uint256 info = balances[account];
         unchecked {
             return
                 BALANCE_MASK &
-                (((balance ^ tick) & TICK1 == 0) ? (balance >> 96) : balance);
+                (((info ^ tick) & TICK1 == 0) ? (info >> 96) : info);
+        }
+    }
+
+    function consumeSnapshot1Balance(address account)
+        external
+        override
+        returns (uint256)
+    {
+        uint256 info = balances[account];
+        unchecked {
+            uint256 balance = BALANCE_MASK &
+                (((info ^ tick) & TICK1 == 0) ? (info >> 96) : info);
+            balances[account] = info & ~TICK1;
+            return balance;
         }
     }
 
     function snapshot2BalanceOf(address account)
         external
         view
+        override
         returns (uint256)
     {
-        uint256 balance = balances[account];
+        uint256 info = balances[account];
         unchecked {
             return
                 BALANCE_MASK &
-                (((balance ^ tick) & TICK2 == 0) ? (balance >> 144) : balance);
+                (((info ^ tick) & TICK2 == 0) ? (info >> 144) : info);
         }
     }
 
-    function snapshot0() external {
+    function consumeSnapshot2Balance(address account)
+        external
+        override
+        returns (uint256)
+    {
+        uint256 info = balances[account];
+        unchecked {
+            uint256 balance = BALANCE_MASK &
+                (((info ^ tick) & TICK2 == 0) ? (info >> 144) : info);
+            balances[account] = info & ~TICK2;
+            return balance;
+        }
+    }
+
+    function snapshot0() external override {
         require(msg.sender == OYLAMA);
         unchecked {
             tick += uint256(1) << 232;
         }
     }
 
-    function snapshot1() external {
+    function snapshot1() external override {
         require(msg.sender == OYLAMA);
         unchecked {
             uint256 t = tick;
@@ -547,7 +595,7 @@ contract TCKO is IERC20Permit, HasDistroStage {
         }
     }
 
-    function snapshot2() external {
+    function snapshot2() external override {
         require(msg.sender == OYLAMA);
         unchecked {
             uint256 t = tick;
