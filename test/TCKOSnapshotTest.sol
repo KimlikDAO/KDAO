@@ -31,6 +31,34 @@ contract TCKOSnapshotTest is Test {
         mintAll(1e12);
     }
 
+    function testAuthentication() public {
+        vm.expectRevert();
+        tcko.snapshot0();
+        vm.expectRevert();
+        tcko.snapshot1();
+        vm.expectRevert();
+        tcko.snapshot1();
+
+        vm.startPrank(OYLAMA);
+        tcko.snapshot0();
+        tcko.snapshot1();
+        tcko.snapshot2();
+        vm.stopPrank();
+
+        vm.expectRevert();
+        tcko.consumeSnapshot0Balance(vm.addr(1));
+        vm.expectRevert();
+        tcko.consumeSnapshot1Balance(vm.addr(1));
+        vm.expectRevert();
+        tcko.consumeSnapshot2Balance(vm.addr(1));
+
+        vm.startPrank(OYLAMA);
+        tcko.consumeSnapshot0Balance(vm.addr(1));
+        tcko.consumeSnapshot1Balance(vm.addr(1));
+        tcko.consumeSnapshot2Balance(vm.addr(1));
+        vm.stopPrank();
+    }
+
     function testTransferFunction() public {
         vm.prank(vm.addr(1));
         tcko.transfer(vm.addr(2), 250_000e6);

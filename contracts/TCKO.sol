@@ -515,11 +515,14 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         override
         returns (uint256)
     {
+        require(msg.sender == OYLAMA);
         uint256 info = balances[account];
         unchecked {
+            uint256 t = tick;
             uint256 balance = BALANCE_MASK &
-                (((info ^ tick) & TICK0 == 0) ? (info >> 48) : info);
-            balances[account] = info & ~TICK0;
+                (((info ^ t) & TICK0 == 0) ? (info >> 48) : info);
+            info &= ~((BALANCE_MASK << 48) | TICK0);
+            balances[account] = info | (t & TICK0);
             return balance;
         }
     }
@@ -543,11 +546,14 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         override
         returns (uint256)
     {
+        require(msg.sender == OYLAMA);
         uint256 info = balances[account];
         unchecked {
+            uint256 t = tick;
             uint256 balance = BALANCE_MASK &
-                (((info ^ tick) & TICK1 == 0) ? (info >> 96) : info);
-            balances[account] = info & ~TICK1;
+                (((info ^ t) & TICK1 == 0) ? (info >> 96) : info);
+            info &= ~((BALANCE_MASK << 96) | TICK1);
+            balances[account] = info | (t & TICK1);
             return balance;
         }
     }
@@ -571,11 +577,14 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         override
         returns (uint256)
     {
+        require(msg.sender == OYLAMA);
         uint256 info = balances[account];
         unchecked {
+            uint256 t = tick;
             uint256 balance = BALANCE_MASK &
-                (((info ^ tick) & TICK2 == 0) ? (info >> 144) : info);
-            balances[account] = info & ~TICK2;
+                (((info ^ t) & TICK2 == 0) ? (info >> 144) : info);
+            info &= ~((BALANCE_MASK << 144) | TICK2);
+            balances[account] = info | (t & TICK2);
             return balance;
         }
     }
