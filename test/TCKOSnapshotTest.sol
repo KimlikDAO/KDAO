@@ -362,4 +362,124 @@ contract TCKOSnapshotTest is Test {
         assertEq(tcko.snapshot2BalanceOf(vm.addr(1)), 250_000e6);
         assertEq(tcko.snapshot2BalanceOf(vm.addr(2)), 250_000e6);
     }
+
+    function testConsumeSnapshotNBalance3Snapshots() public {
+        uint256 i = 1;
+        vm.prank(vm.addr(i));
+        tcko.transfer(vm.addr(i + 1), 50_000e6);
+
+        vm.startPrank(OYLAMA);
+        tcko.snapshot0();
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(i)), 200_000e6);
+        uint256 snapshot0Balance = tcko.snapshot0BalanceOf(vm.addr(i));
+        uint256 snapshot0ConsumedBalance = tcko.consumeSnapshot0Balance(
+            vm.addr(i)
+        );
+        vm.stopPrank();
+        assertEq(snapshot0Balance, 200_000e6);
+        assertEq(snapshot0Balance, snapshot0ConsumedBalance);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(i + 1)), 300_000e6);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 0);
+
+        vm.prank(vm.addr(i + 1));
+        tcko.transfer(vm.addr(i), 50_000e6);
+
+        vm.startPrank(OYLAMA);
+        tcko.snapshot1();
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(i)), 250_000e6);
+        uint256 snapshot1Balance = tcko.snapshot1BalanceOf(vm.addr(i));
+        uint256 snapshot1ConsumedBalance = tcko.consumeSnapshot1Balance(
+            vm.addr(i)
+        );
+        vm.stopPrank();
+        assertEq(snapshot1Balance, 250_000e6);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(i)), 0);
+        assertEq(snapshot1Balance, snapshot1ConsumedBalance);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(i + 1)), 250_000e6);
+
+        vm.prank(vm.addr(i));
+        tcko.transfer(vm.addr(i + 1), 25_000e6);
+
+        vm.startPrank(OYLAMA);
+        tcko.snapshot2();
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(i)), 225_000e6);
+        uint256 snapshot2Balance = tcko.snapshot2BalanceOf(vm.addr(i));
+        uint256 snapshot2ConsumedBalance = tcko.consumeSnapshot2Balance(
+            vm.addr(i)
+        );
+        vm.stopPrank();
+        assertEq(snapshot2Balance, 225_000e6);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(i)), 0);
+        assertEq(snapshot2Balance, snapshot2ConsumedBalance);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(i + 1)), 275_000e6);
+    }
+
+    function testConsumeSnapshot0Balance() public {
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(2), 100_000e6);
+
+        vm.startPrank(OYLAMA);
+        tcko.snapshot0();
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 150_000e6);
+        assertEq(
+            tcko.snapshot0BalanceOf(vm.addr(1)),
+            tcko.consumeSnapshot0Balance(vm.addr(1))
+        );
+        vm.stopPrank();
+        assertEq(tcko.balanceOf(vm.addr(1)), 150_000e6);
+        assertEq(tcko.balanceOf(vm.addr(2)), 350_000e6);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 350_000e6);
+
+        vm.prank(OYLAMA);
+        assertEq(tcko.consumeSnapshot0Balance(vm.addr(2)), 350_000e6);
+        assertEq(tcko.snapshot0BalanceOf(vm.addr(2)), 0);
+        assertEq(tcko.balanceOf(vm.addr(2)), 350_000e6);
+    }
+
+    function testConsumeSnapshot1Balance() public {
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(2), 100_000e6);
+
+        vm.startPrank(OYLAMA);
+        tcko.snapshot1();
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 150_000e6);
+        assertEq(
+            tcko.snapshot1BalanceOf(vm.addr(1)),
+            tcko.consumeSnapshot1Balance(vm.addr(1))
+        );
+        vm.stopPrank();
+        assertEq(tcko.balanceOf(vm.addr(1)), 150_000e6);
+        assertEq(tcko.balanceOf(vm.addr(2)), 350_000e6);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(2)), 350_000e6);
+
+        vm.prank(OYLAMA);
+        assertEq(tcko.consumeSnapshot1Balance(vm.addr(2)), 350_000e6);
+        assertEq(tcko.snapshot1BalanceOf(vm.addr(2)), 0);
+        assertEq(tcko.balanceOf(vm.addr(2)), 350_000e6);
+    }
+
+    function testConsumeSnapshot2Balance() public {
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(2), 100_000e6);
+
+        vm.startPrank(OYLAMA);
+        tcko.snapshot2();
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(1)), 150_000e6);
+        assertEq(
+            tcko.snapshot2BalanceOf(vm.addr(1)),
+            tcko.consumeSnapshot2Balance(vm.addr(1))
+        );
+        vm.stopPrank();
+        assertEq(tcko.balanceOf(vm.addr(1)), 150_000e6);
+        assertEq(tcko.balanceOf(vm.addr(2)), 350_000e6);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(1)), 0);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(2)), 350_000e6);
+
+        vm.prank(OYLAMA);
+        assertEq(tcko.consumeSnapshot2Balance(vm.addr(2)), 350_000e6);
+        assertEq(tcko.snapshot2BalanceOf(vm.addr(2)), 0);
+        assertEq(tcko.balanceOf(vm.addr(2)), 350_000e6);
+    }
 }
