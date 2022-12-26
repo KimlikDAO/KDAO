@@ -128,7 +128,7 @@ contract TCKOTest is Test {
         tcko.incrementDistroStage(DistroStage.FinalMint);
         mintAll(1e12);
 
-        tckok.unlock(vm.addr(1));
+        assertEq(tckok.unlock(vm.addr(1)), false);
 
         assertEq(tckok.balanceOf(vm.addr(1)), 750e9);
 

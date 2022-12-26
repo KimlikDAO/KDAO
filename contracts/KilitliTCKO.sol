@@ -27,14 +27,14 @@ import "interfaces/IERC20.sol";
 contract KilitliTCKO is IERC20 {
     uint256 public override totalSupply;
 
-    mapping(address => uint128[2]) private balances;
+    mapping(address => uint256) private balances;
     address[] private accounts0;
     // Split Presale2 accounts out, so that even if we can't unlock them in
     // one shot due to gas limit, we can still unlock others in one shot.
     address[] private accounts1;
 
     function name() external pure override returns (string memory) {
-        return "KimlikDAO Kilitli Tokeni";
+        return "Kilitli TCKO";
     }
 
     function symbol() external pure override returns (string memory) {
@@ -45,6 +45,8 @@ contract KilitliTCKO is IERC20 {
         return 6;
     }
 
+    uint256 private constant BALANCE0_MASK = type(uint256).max >> 128;
+
     function balanceOf(address account)
         external
         view
@@ -52,7 +54,8 @@ contract KilitliTCKO is IERC20 {
         returns (uint256)
     {
         unchecked {
-            return balances[account][0] + balances[account][1];
+            uint256 balance = balances[account];
+            return (balance & BALANCE0_MASK) + (balance >> 128);
         }
     }
 
@@ -91,10 +94,10 @@ contract KilitliTCKO is IERC20 {
         unchecked {
             if (uint256(stage) & 1 == 0) {
                 accounts0.push(account);
-                balances[account][0] += uint128(amount);
+                balances[account] += amount;
             } else {
                 accounts1.push(account);
-                balances[account][1] += uint128(amount);
+                balances[account] += amount << 128;
             }
             totalSupply += amount;
             emit Transfer(address(this), account, amount);
@@ -104,19 +107,21 @@ contract KilitliTCKO is IERC20 {
     function unlock(address account) public returns (bool) {
         unchecked {
             DistroStage stage = HasDistroStage(TCKO_ADDR).distroStage();
-            uint256 locked = 0;
+            uint256 locked;
+            uint256 balance = balances[account];
             if (
                 stage >= DistroStage.DAOSaleEnd &&
                 stage != DistroStage.FinalMint
             ) {
-                locked += balances[account][0];
-                delete balances[account][0];
+                locked += balance & BALANCE0_MASK;
+                balance &= ~BALANCE0_MASK;
             }
             if (stage >= DistroStage.Presale2Unlock) {
-                locked += balances[account][1];
-                delete balances[account][1];
+                locked += balance >> 128;
+                balance &= BALANCE0_MASK;
             }
             if (locked > 0) {
+                balances[account] = balance;
                 emit Transfer(account, address(this), locked);
                 totalSupply -= locked;
                 IERC20(TCKO_ADDR).transfer(account, locked);
@@ -137,9 +142,10 @@ contract KilitliTCKO is IERC20 {
             uint256 totalUnlocked;
             for (uint256 i = 0; i < length; ++i) {
                 address account = accounts0[i];
-                uint256 locked = balances[account][0];
+                uint256 balance = balances[account];
+                uint256 locked = balance & BALANCE0_MASK;
                 if (locked > 0) {
-                    delete balances[account][0];
+                    balances[account] = balance & ~BALANCE0_MASK;
                     emit Transfer(account, address(this), locked);
                     totalUnlocked += locked;
                     IERC20(TCKO_ADDR).transfer(account, locked);
@@ -161,9 +167,10 @@ contract KilitliTCKO is IERC20 {
             uint256 totalUnlocked;
             for (uint256 i = 0; i < length; ++i) {
                 address account = accounts1[i];
-                uint256 locked = balances[account][1];
+                uint256 balance = balances[account];
+                uint256 locked = balance >> 128;
                 if (locked > 0) {
-                    delete balances[account][1];
+                    balances[account] = balance & BALANCE0_MASK;
                     emit Transfer(account, address(this), locked);
                     totalUnlocked += locked;
                     IERC20(TCKO_ADDR).transfer(account, locked);
