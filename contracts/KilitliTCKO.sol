@@ -198,9 +198,9 @@ contract KilitliTCKO is IERC20 {
      * Moves ERC20 tokens sent to this address by accident to `DAO_KASASI`.
      */
     function rescueToken(IERC20 token) external {
-        // We restrict this method to `DEV_KASASI` only, as we call a method of
+        // We restrict this method to `OYLAMA` only, as we call a method of
         // an unkown contract, which could potentially be a security risk.
-        require(msg.sender == DEV_KASASI);
+        require(msg.sender == OYLAMA);
         // Disable sending out TCKO to ensure the invariant TCKO.(I4).
         require(address(token) != TCKO_ADDR);
         token.transfer(DAO_KASASI, token.balanceOf(address(this)));
