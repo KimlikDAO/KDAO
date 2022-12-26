@@ -749,4 +749,27 @@ contract TCKOTest is Test {
             20_000_000e6 + 40_000_000e6 / 4 - 500_000e6
         );
     }
+
+    function testPresale2Contract() external {
+        vm.expectRevert();
+        tcko.setPresale2Contract(vm.addr(0x94E008A7E2));
+
+        vm.startPrank(DEV_KASASI);
+        tcko.setPresale2Contract(vm.addr(0x94E008A7E2));
+        tcko.incrementDistroStage(DistroStage.Presale2);
+        vm.stopPrank();
+
+        vm.startPrank(vm.addr(0x94E008A7E2));
+        vm.expectRevert();
+        tcko.mint(uint160(address(tckok)) | (1 << 160));
+        vm.expectRevert();
+        tcko.mint(uint160(address(DAO_KASASI)) | (1 << 160));
+
+        tcko.mint(uint160(vm.addr(1)) | (20_000_000e6 << 160));
+        vm.expectRevert();
+        tcko.mint(uint160(vm.addr(1)) | (1 << 160));
+        vm.stopPrank();
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 5_250_000e6);
+    }
 }
