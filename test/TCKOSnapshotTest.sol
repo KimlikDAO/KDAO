@@ -542,4 +542,13 @@ contract TCKOSnapshotTest is Test {
         assertEq(tcko.balanceOf(vm.addr(3)), 100_000e6);
         assertEq(tcko.balanceOf(vm.addr(4)), 150_000e6);
     }
+
+    function testBalanceIsPreservedAfterConsume() external {
+        assertEq(tcko.balanceOf(vm.addr(1)), 250_000e6);
+        vm.prank(OYLAMA);
+        tcko.snapshot2();
+        vm.prank(OYLAMA);
+        tcko.consumeSnapshot2Balance(vm.addr(1));
+        assertEq(tcko.balanceOf(vm.addr(1)), 250_000e6);
+    }
 }
