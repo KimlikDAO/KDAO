@@ -672,5 +672,81 @@ contract TCKOTest is Test {
 
     function testTokenMethods() external {
         assertEq(tcko.decimals(), tckok.decimals());
+        // Increase coverage so we can always aim at 100%.
+        assertEq(tcko.name(), "KimlikDAO Tokeni");
+        assertEq(tckok.name(), "Kilitli TCKO");
+        assertEq(tcko.maxSupply(), 100_000_000e6);
+
+        assertEq(tcko.circulatingSupply(), 5_000_000e6);
+        assertEq(
+            bytes32(bytes(tckok.symbol()))[0],
+            bytes32(bytes(tcko.symbol()))[0]
+        );
+        assertEq(
+            bytes32(bytes(tckok.symbol()))[1],
+            bytes32(bytes(tcko.symbol()))[1]
+        );
+        assertEq(
+            bytes32(bytes(tckok.symbol()))[2],
+            bytes32(bytes(tcko.symbol()))[2]
+        );
+        assertEq(
+            bytes32(bytes(tckok.symbol()))[3],
+            bytes32(bytes(tcko.symbol()))[3]
+        );
+    }
+
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+
+    function testTransfer() external {
+        vm.startPrank(vm.addr(1));
+
+        vm.expectRevert();
+        tcko.transfer(address(0), 250_000e6);
+
+        vm.expectRevert();
+        tcko.transfer(address(tcko), 250_000e6);
+
+        vm.expectRevert();
+        tcko.transfer(address(tckok), 250_000e6);
+
+        vm.expectRevert();
+        tcko.transfer(vm.addr(2), 251_000e6);
+
+        vm.expectEmit(true, true, false, true, address(tcko));
+        emit Transfer(vm.addr(1), vm.addr(2), 250_000e6);
+        tcko.transfer(vm.addr(2), 250_000e6);
+
+        assertEq(tcko.totalSupply(), 20_000_000e6);
+
+        vm.stopPrank();
+
+        vm.startPrank(vm.addr(2));
+
+        tcko.transfer(DAO_KASASI, 500_000e6);
+
+        assertEq(tcko.totalSupply() + 500_000e6, tcko.supplyCap());
+
+        vm.stopPrank();
+
+        vm.startPrank(DEV_KASASI);
+        vm.expectRevert();
+        tcko.incrementDistroStage(DistroStage.Presale1);
+
+        tcko.incrementDistroStage(DistroStage.Presale2);
+        vm.stopPrank();
+        mintAll(1e12);
+
+        assertEq(tcko.totalSupply() + 500_000e6, tcko.supplyCap());
+
+        vm.prank(DEV_KASASI);
+        tcko.incrementDistroStage(DistroStage.DAOSaleStart);
+
+        assertEq(tcko.supplyCap(), 60_000_000e6);
+        assertEq(tcko.totalSupply() + 500_000e6, tcko.supplyCap());
+        assertEq(
+            tcko.circulatingSupply(),
+            20_000_000e6 + 40_000_000e6 / 4 - 500_000e6
+        );
     }
 }

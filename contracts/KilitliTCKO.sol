@@ -19,10 +19,10 @@ import "interfaces/IERC20.sol";
  * not need to take any action to unlock their tokens.
  *
  * Invariants:
- *   (I1) sum_a(balances[a][0]) + sum_a(balances[a][1]) == totalSupply
+ *   (I1) sum_a(lo(balances[a])) + sum_a(hi(balances[a])) == totalSupply
  *   (I2) totalSupply == TCKO.balanceOf(address(this))
- *   (I3) balance[a][0] > 0 => accounts0.includes(a)
- *   (I4) balance[a][1] > 0 => accounts1.includes(a)
+ *   (I3) lo(balance[a]) > 0 => accounts0.includes(a)
+ *   (I4) hi(balance[a]) > 0 => accounts1.includes(a)
  */
 contract KilitliTCKO is IERC20 {
     uint256 public override totalSupply;
