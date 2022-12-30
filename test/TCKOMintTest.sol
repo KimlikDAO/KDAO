@@ -2,9 +2,11 @@
 
 pragma solidity 0.8.17;
 
-import "contracts/TCKO.sol";
 import "forge-std/Test.sol";
-import "interfaces/testing/MockDAOKasasi.sol";
+import "interfaces/Addresses.sol";
+import {IDAOKasasi} from "interfaces/IDAOKasasi.sol";
+import {MockDAOKasasi} from "interfaces/testing/MockDAOKasasi.sol";
+import {TCKO, KilitliTCKO} from "contracts/TCKO.sol";
 
 contract TCKOMintTest is Test {
     TCKO private tcko;
