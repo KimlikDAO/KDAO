@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "contracts/TCKO.sol";
-import "interfaces/Addresses.sol";
 import "forge-std/Test.sol";
+import {DAO_KASASI, TCKO_ADDR} from "interfaces/Addresses.sol";
+import {IERC20} from "interfaces/IERC20.sol";
 
 contract ReentrancyAttackAttempt1 {
-    TCKO private tcko = TCKO(TCKO_ADDR);
+    IERC20 private tcko = IERC20(TCKO_ADDR);
 
     function attack() external {
         tcko.transfer(
@@ -24,7 +24,7 @@ contract ReentrancyAttackAttempt1 {
 }
 
 contract ReentrancyAttackAttempt2 {
-    TCKO private tcko = TCKO(TCKO_ADDR);
+    IERC20 private tcko = IERC20(TCKO_ADDR);
 
     function attack() external {
         tcko.transfer(address(DAO_KASASI), (tcko.balanceOf(address(this)) / 2));
@@ -38,7 +38,7 @@ contract ReentrancyAttackAttempt2 {
 }
 
 contract InnocentContract is Test {
-    TCKO private tcko = TCKO(TCKO_ADDR);
+    IERC20 private tcko = IERC20(TCKO_ADDR);
 
     function sendToDAOkasasi() external {
         tcko.transfer(address(DAO_KASASI), tcko.balanceOf(address(this)));

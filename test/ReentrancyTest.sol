@@ -1,11 +1,11 @@
-//SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.17;
 
+import "./ReentrancyAttackContracts.sol";
 import "contracts/TCKO.sol";
 import "forge-std/Test.sol";
-import "./ReentrancyAttackContracts.sol";
-import "interfaces/testing/MockDAOKasasi.sol";
+import {MockDAOKasasi} from "interfaces/testing/MockDAOKasasi.sol";
 
 contract ReentrancyTest is Test {
     TCKO private tcko;
@@ -18,10 +18,10 @@ contract ReentrancyTest is Test {
     function setUp() public {
         vm.prank(TCKO_DEPLOYER);
         tcko = new TCKO();
-
         vm.prank(TCKOK_DEPLOYER);
         tckok = new KilitliTCKO();
         assertEq(address(tckok), TCKOK);
+
         vm.startPrank(vm.addr(1));
         reentrancyContract1 = new ReentrancyAttackAttempt1();
         reentrancyContract2 = new ReentrancyAttackAttempt2();
