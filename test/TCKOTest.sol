@@ -5,11 +5,13 @@ pragma solidity 0.8.17;
 import "contracts/TCKO.sol";
 import "forge-std/Test.sol";
 import "interfaces/testing/MockDAOKasasi.sol";
+import {MockERC20Permit} from "interfaces/testing/MockTokens.sol";
 
 contract TCKOTest is Test {
     TCKO private tcko;
     KilitliTCKO private tckok;
     IDAOKasasi private daoKasasi;
+    MockERC20Permit private testToken;
 
     function setUp() public {
         vm.prank(TCKO_DEPLOYER);
@@ -822,5 +824,109 @@ contract TCKOTest is Test {
         vm.stopPrank();
 
         assertEq(tcko.balanceOf(vm.addr(1)), 5_250_000e6);
+    }
+
+    function testTCKOKrescueToken() external {
+        vm.startPrank(vm.addr(20));
+        testToken = new MockERC20Permit("TestToken", "TT", 6);
+        testToken.transfer(address(tckok), 4e7);
+        vm.stopPrank();
+
+        assertEq(testToken.balanceOf(address(tckok)), 4e7);
+        assertEq(testToken.balanceOf(vm.addr(20)), 6e7);
+
+        vm.startPrank(vm.addr(1));
+        vm.expectRevert();
+        tckok.rescueToken(testToken);
+        vm.stopPrank();
+
+        vm.startPrank(OYLAMA);
+        vm.expectRevert();
+        tckok.rescueToken(IERC20Permit(TCKO_ADDR));
+        vm.stopPrank();
+
+        vm.startPrank(OYLAMA);
+        tckok.rescueToken(testToken);
+        vm.stopPrank();
+
+        assertEq(testToken.balanceOf(DAO_KASASI), 4e7);
+        assertEq(testToken.balanceOf(address(tckok)), 0);
+    }
+
+    function testTCKOKselfDestruct() external {
+        vm.startPrank(vm.addr(1));
+        vm.expectRevert();
+        tckok.selfDestruct();
+        vm.stopPrank();
+
+        vm.startPrank(DEV_KASASI);
+        vm.expectRevert();
+        tckok.selfDestruct();
+        vm.stopPrank();
+
+        vm.prank(vm.addr(1));
+        tcko.transfer(vm.addr(2), 250_000e6);
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 0);
+        assertEq(tcko.balanceOf(vm.addr(2)), 500_000e6);
+
+        vm.prank(DEV_KASASI);
+        tcko.incrementDistroStage(DistroStage.Presale2);
+        mintAll(1e12);
+
+        assertEq(tcko.totalSupply(), 40e12);
+        assertEq(tckok.totalSupply(), 30e12);
+
+        vm.prank(DEV_KASASI);
+        tcko.incrementDistroStage(DistroStage.DAOSaleStart);
+
+        assertEq(tcko.totalSupply(), 60e12);
+        assertEq(tckok.totalSupply(), 30e12);
+        assertEq(tcko.balanceOf(DAO_KASASI), 20e12);
+
+        vm.prank(DEV_KASASI);
+        tcko.incrementDistroStage(DistroStage.DAOSaleEnd);
+
+        tckok.unlock(vm.addr(1));
+        tckok.unlock(vm.addr(2));
+
+        assertEq(tcko.balanceOf(vm.addr(1)), 1e12);
+        assertEq(tcko.balanceOf(vm.addr(2)), 1_500e9);
+
+        tckok.unlockAllEven();
+
+        assertEq(tckok.balanceOf(vm.addr(1)), 750e9);
+        assertEq(tckok.balanceOf(vm.addr(2)), 750e9);
+
+        vm.prank(DEV_KASASI);
+        tcko.incrementDistroStage(DistroStage.DAOAMMStart);
+
+        assertEq(tcko.totalSupply(), 80e12);
+        assertEq(tckok.totalSupply(), 15e12);
+
+        vm.prank(DEV_KASASI);
+        tcko.incrementDistroStage(DistroStage.Presale2Unlock);
+
+        tckok.unlockAllOdd();
+
+        vm.prank(DEV_KASASI);
+        tcko.incrementDistroStage(DistroStage.FinalMint);
+        mintAll(1e12);
+
+        assertEq(tckok.unlock(vm.addr(1)), false);
+
+        assertEq(tckok.balanceOf(vm.addr(1)), 750e9);
+
+        vm.warp(1925097600);
+        vm.prank(DEV_KASASI);
+        tcko.incrementDistroStage(DistroStage.FinalUnlock);
+
+        tckok.unlockAllEven();
+
+        vm.prank(DEV_KASASI);
+        tckok.selfDestruct();
+
+        // Testing selfdestruct() is not implemented in anvil?
+        console.log(tckok.name());
     }
 }
