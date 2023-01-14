@@ -2,7 +2,7 @@
  * @const {string}
  * @noinline
  */
-export const TCKO_ADDR = "0xB97Bf95b4F3110285727b70da5a7465bFD2098Ca";
+export const OLD_TCKO_ADDR = "0xB97Bf95b4F3110285727b70da5a7465bFD2098Ca";
 
 /** @const {!Object<string, number>} */
 const Balances = {
@@ -27,3 +27,34 @@ const Balances = {
   "0x270d986a3c6018b5ec48fdf7eb23e24a3816632e": 80000,
   "0xbcc3ffbf42d91faa52c2622b6e31c3ff3b714d5b": 16000
 }
+
+/**
+ * @param {string} nodeUrl
+ * @return {!Promise<boolean>}
+ */
+const validateWithNode = (nodeUrl) => {
+  const requests = Object.keys(Balances).map((address, index) => ({
+    "jsonrpc": "2.0",
+    "id": index + 1,
+    "method": "eth_call",
+    "params": [{
+      "data": "0x70a08231000000000000000000000000" + address.slice(2),
+      "to": OLD_TCKO_ADDR
+    }, "latest"]
+  }));
+  return fetch(nodeUrl, {
+    method: "POST",
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(requests)
+  }).then((res) => res.json())
+    .then((res) => res.map((elem) => 4 * parseInt(elem.result.slice(-16), 16)))
+    .then((remoteBalances) => {
+      /** @const {!Array<number>} */
+      const localBalances = Object.values(Balances).map((x) => 1_000_000 * x);
+      for (let i = 0; i < localBalances.length; ++i)
+        if (localBalances[i] != remoteBalances[i]) return false;
+      return true;
+    })
+}
+
+validateWithNode("https://api.avax.network/ext/bc/C/rpc").then(console.log);
