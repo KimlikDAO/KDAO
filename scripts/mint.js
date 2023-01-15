@@ -33,6 +33,12 @@ const SEED_SIGNERS = {
   "0xc807b02baccf6b128ad3ee5fab8c4ee5f10cb750": 100_000,
 };
 
+/** @const {!Object<string, string>} */
+const ADDRESS_CHANGES = {
+  "0xccc00bc7e6983b1901825888a7bb3bda3b051b12":
+    "0xcCc07a7597494DaF16568ff3E00C2a28edc92cCc".toLowerCase()
+}
+
 /**
  * @param {number|!bigint}
  * @return {string}
@@ -64,11 +70,13 @@ const generateConstructor = () => {
   /** @const {!Object<string, number>} */
   const toMint = Object.assign({}, DAO_MEMBERS, SEED_SIGNERS);
 
-  return Object.entries(toMint).map((amountAccount) =>
-    "mint(0x" +
-    uint48(1_000_000 * amountAccount[1]) +
-    amountAccount[0].slice(2) + ");\n")
-    .reduce((a, b) => a + b);
+  return Object.entries(toMint).map((amountAccount) => {
+    const prevAddress = amountAccount[0];
+    const address = ADDRESS_CHANGES[prevAddress] || prevAddress;
+    return "mint(0x" +
+      uint48(1_000_000 * amountAccount[1]) +
+      address.slice(2) + ");\n"
+  }).reduce((a, b) => a + b);
 }
 
 assertEq(sumBalances(DAO_MEMBERS), 19_216_000);
