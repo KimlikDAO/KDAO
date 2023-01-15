@@ -17,7 +17,7 @@ contract ReentrancyTest is Test {
 
     function setUp() public {
         vm.prank(TCKO_DEPLOYER);
-        tcko = new TCKO();
+        tcko = new TCKO(false);
         vm.prank(TCKOK_DEPLOYER);
         tckok = new KilitliTCKO();
         assertEq(address(tckok), TCKOK);
@@ -39,7 +39,7 @@ contract ReentrancyTest is Test {
     function mintAll(uint256 amount) public {
         vm.startPrank(DEV_KASASI);
         for (uint256 i = 1; i <= 20; ++i)
-            tcko.mint((amount << 160) | uint160(vm.addr(i)));
+            tcko.mintTo((amount << 160) | uint160(vm.addr(i)));
         vm.stopPrank();
     }
 

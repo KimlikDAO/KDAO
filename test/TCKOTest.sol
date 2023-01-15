@@ -15,7 +15,7 @@ contract TCKOTest is Test {
 
     function setUp() public {
         vm.prank(TCKO_DEPLOYER);
-        tcko = new TCKO();
+        tcko = new TCKO(false);
 
         vm.prank(TCKOK_DEPLOYER);
         tckok = new KilitliTCKO();
@@ -29,29 +29,13 @@ contract TCKOTest is Test {
     function mintAll(uint256 amount) public {
         vm.startPrank(DEV_KASASI);
         for (uint256 i = 1; i <= 20; ++i)
-            tcko.mint((amount << 160) | uint160(vm.addr(i)));
+            tcko.mintTo((amount << 160) | uint160(vm.addr(i)));
         vm.stopPrank();
     }
 
     function testDAOAuthentication() public {
         vm.expectRevert();
-        tcko.mint((uint256(1) << 160) | uint160(vm.addr(1)));
-
-        uint256[10] memory accounts = [
-            (uint256(1) << 160) | 1,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
-        ];
-
-        vm.expectRevert();
-        tcko.mintBulk(accounts);
+        tcko.mintTo((uint256(1) << 160) | uint160(vm.addr(1)));
 
         vm.expectRevert();
         tcko.setPresale2Contract(vm.addr(1337));
@@ -814,13 +798,13 @@ contract TCKOTest is Test {
 
         vm.startPrank(vm.addr(0x94E008A7E2));
         vm.expectRevert();
-        tcko.mint(uint160(address(tckok)) | (1 << 160));
+        tcko.mintTo(uint160(address(tckok)) | (1 << 160));
         vm.expectRevert();
-        tcko.mint(uint160(address(DAO_KASASI)) | (1 << 160));
+        tcko.mintTo(uint160(address(DAO_KASASI)) | (1 << 160));
 
-        tcko.mint(uint160(vm.addr(1)) | (20_000_000e6 << 160));
+        tcko.mintTo(uint160(vm.addr(1)) | (20_000_000e6 << 160));
         vm.expectRevert();
-        tcko.mint(uint160(vm.addr(1)) | (1 << 160));
+        tcko.mintTo(uint160(vm.addr(1)) | (1 << 160));
         vm.stopPrank();
 
         assertEq(tcko.balanceOf(vm.addr(1)), 5_250_000e6);

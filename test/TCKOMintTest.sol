@@ -14,35 +14,50 @@ contract TCKOMintTest is Test {
     IDAOKasasi private daoKasasi;
 
     function setUp() public {
-        vm.prank(TCKO_DEPLOYER);
-        tcko = new TCKO();
-
         vm.prank(TCKOK_DEPLOYER);
         tckok = new KilitliTCKO();
+
+        vm.prank(TCKO_DEPLOYER);
+        tcko = new TCKO(true);
 
         vm.prank(DAO_KASASI_DEPLOYER);
         daoKasasi = new MockDAOKasasi();
     }
 
-    function testMintBulk() external {
-        uint256[10] memory amountAccounts = [
-            uint160(vm.addr(1)) | uint256(1e12 << 160),
-            uint160(vm.addr(2)) | (1e12 << 160),
-            uint160(vm.addr(3)) | (1e12 << 160),
-            uint160(vm.addr(4)) | (1e12 << 160),
-            uint160(vm.addr(5)) | (1e12 << 160),
-            uint160(vm.addr(6)) | (1e12 << 160),
-            uint160(vm.addr(7)) | (1e12 << 160),
-            uint160(vm.addr(8)) | (1e12 << 160),
-            uint160(vm.addr(9)) | (1e12 << 160),
-            uint160(vm.addr(10)) | (1e12 << 160)
-        ];
-        vm.expectRevert();
-        tcko.mintBulk(amountAccounts);
-
-        vm.prank(DEV_KASASI);
-        tcko.mintBulk(amountAccounts);
-
-        assertEq(tcko.totalSupply(), 10_000_000e6);
+    function testBalances() external {
+        // Check signer node balances.
+        assertEq(
+            tcko.balanceOf(0xa41F9Ad9fD440C2e297dD89F36240716d832BbDb),
+            25000e6
+        );
+        assertEq(
+            tckok.balanceOf(0xa41F9Ad9fD440C2e297dD89F36240716d832BbDb),
+            75000e6
+        );
+        assertEq(
+            tcko.balanceOf(0x9c6502b0837353097562E5Ffc815Ac7D44A729eA),
+            25000e6
+        );
+        assertEq(
+            tckok.balanceOf(0x9c6502b0837353097562E5Ffc815Ac7D44A729eA),
+            75000e6
+        );
+        assertEq(
+            tcko.balanceOf(0x7D211ECf4dd431D68D800497C8902474aF0412B7),
+            25000e6
+        );
+        assertEq(
+            tckok.balanceOf(0x7D211ECf4dd431D68D800497C8902474aF0412B7),
+            75000e6
+        );
+        assertEq(
+            tcko.balanceOf(0x57074c1956d7eF1cDa0A8ca26E22C861e30cd733),
+            1_000_000e6
+        );
+        assertEq(
+            tckok.balanceOf(0x57074c1956d7eF1cDa0A8ca26E22C861e30cd733),
+            3_000_000e6
+        );
+        assertEq(tcko.totalSupply(), 19_216_000e6 + 500_000e6);
     }
 }

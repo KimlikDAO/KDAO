@@ -1,11 +1,8 @@
 /** @const {string} */
 const OLD_TCKO_ADDR = "0xB97Bf95b4F3110285727b70da5a7465bFD2098Ca";
 
-/** @const {string} */
-const TCKO_ADDR = "0xcCc01Ec0E6Fb38Cce8b313c3c8dbfe66efD01cCc";
-
 /** @const {!Object<string, number>} */
-const DAO_MEMBERS_1 = {
+const DAO_MEMBERS = {
   "0x57074c1956d7ef1cda0a8ca26e22c861e30cd733": 4_000_000,
   "0xcf7fea15b049ab04ffd03c86f353729c8519d72e": 4_000_000,
   "0x523c8c26e20bbff5f100221c2c4f99e755681731": 1_600_000,
@@ -16,9 +13,6 @@ const DAO_MEMBERS_1 = {
   "0x9b5541ab008f30afa9b047a868ca5e11fa4e6752": 800_000,
   "0x9c48199d8d3d8ee6ef4716b0cb7d99148788712e": 800_000,
   "0xccc00bc7e6983b1901825888a7bb3bda3b051b12": 800_000,
-};
-/** @const {!Object<string, number>} */
-const DAO_MEMBERS_2 = {
   "0x3480d7de36a3d92ee0cc8685f0f3fea2ade86a9b": 400_000,
   "0x3dd308d8a7035d414bd2ec934a83564f814675fa": 400_000,
   "0x530a8eeb07d81ec4837f6e2c405357defd7cb1ba": 400_000,
@@ -40,6 +34,12 @@ const SEED_SIGNERS = {
 };
 
 /**
+ * @param {number|!bigint}
+ * @return {string}
+ */
+const uint48 = (num) => num.toString(16).padStart(12, "0");
+
+/**
  * @template T
  * @param {T} given
  * @param {T} expected
@@ -59,15 +59,30 @@ const assertEq = (given, expected) => {
  */
 const sumBalances = (balances) => Object.values(balances).reduce((a, b) => a + b);
 
+/** @return {string} */
+const generateConstructor = () => {
+  /** @const {!Object<string, number>} */
+  const toMint = Object.assign({}, DAO_MEMBERS, SEED_SIGNERS);
+
+  return Object.entries(toMint).map((amountAccount) =>
+    "mint(0x" +
+    uint48(1_000_000 * amountAccount[1]) +
+    amountAccount[0].slice(2) + ");\n")
+    .reduce((a, b) => a + b);
+}
+
+assertEq(sumBalances(DAO_MEMBERS), 19_216_000);
+assertEq(sumBalances(SEED_SIGNERS), 500_000);
+
+console.log(generateConstructor());
+
 /**
  * @param {string} nodeUrl
  * @return {!Promise<boolean>}
  */
 const validateWithNode = (nodeUrl) => {
-  /** @const {!Object<string, number>} */
-  const daoMembers = Object.assign({}, DAO_MEMBERS_1, DAO_MEMBERS_2);
   /** @const {!Array<!jsonrpc.Request>} */
-  const requests = Object.keys(daoMembers).map((address, index) =>
+  const requests = Object.keys(DAO_MEMBERS).map((address, index) =>
     /** @type {!jsonrpc.Request} */({
     "jsonrpc": "2.0",
     "id": index + 1,
@@ -85,51 +100,12 @@ const validateWithNode = (nodeUrl) => {
     .then((res) => res.map((elem) => 4 * parseInt(elem.result.slice(-12), 16)))
     .then((remoteBalances) => {
       /** @const {!Array<number>} */
-      const localBalances = Object.values(daoMembers).map((x) => 1_000_000 * x);
+      const localBalances = Object.values(DAO_MEMBERS).map((x) => 1_000_000 * x);
       for (let i = 0; i < localBalances.length; ++i)
         if (localBalances[i] != remoteBalances[i]) return false;
       return true;
     })
 }
 
-/**
- * @param {number|!bigint}
- * @return {string}
- */
-const uint96 = (num) => num.toString(16).padStart(24, "0");
-
-/**
- * @param {string} calldata without the "0x" prefix.
- */
-const printCalldata = (calldata) => {
-  console.log("Selector:", calldata.slice(0, 8));
-  for (let pos = 8, idx = 1; pos < calldata.length; ++idx, pos += 64)
-    console.log(
-      "Param " + idx.toString().padStart(2, " ") + ":",
-      calldata.slice(pos, pos + 64)
-    );
-}
-
-/**
- * @param {!Object<string, number>} balances
- * @return {!Promise<void>}
- */
-const mintBulk = (balances) => {
-  const n = Object.keys(balances).length;
-  if (n < 5 || n > 10) return Promise.reject("bulkMint() needs 5 to 10 addresses");
-
-  const calldata = "678c5a9d" + Object.entries(balances)
-    .map((item) => uint96(1_000_000 * item[1]) + item[0].slice(2))
-    .reduce((a, b) => a + b) + "0".repeat((10 - n) * 64);
-
-  printCalldata(calldata);
-  return Promise.resolve();
-}
-
-assertEq(
-  Object.keys(DAO_MEMBERS_1).length + Object.keys(DAO_MEMBERS_2).length,
-  20
-);
 validateWithNode("https://api.avax.network/ext/bc/C/rpc")
-  .then(() => mintBulk(DAO_MEMBERS_1))
-  .then(() => mintBulk(DAO_MEMBERS_2));
+  .then(console.log);

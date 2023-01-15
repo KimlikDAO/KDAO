@@ -76,7 +76,7 @@ Facts:
   (F1) 1 <= distroRound <= 5
 
 Invariants:
-  (I1) supplyCap() <= 20M * 1M * distroRound
+  (I1) supplyCap() <= 20M * 1M * distroRound < 2^48
   (I2) sum_a(balanceOf(a)) == totalSupply <= totalMinted
   (I3) totalMinted <= supplyCap()
   (I4) balanceOf(KILITLI_TCKO) == KilitliTCKO.totalSupply()

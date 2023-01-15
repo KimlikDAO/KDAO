@@ -92,7 +92,7 @@ import {IERC20Snapshot3} from "interfaces/IERC20Snapshot3.sol";
  *   (F1) 1 <= distroRound <= 5
  *
  * Invariants:
- *   (I1) supplyCap() <= 20M * 1M * distroRound
+ *   (I1) supplyCap() <= 20M * 1M * distroRound < 2^48.
  *   (I2) sum_a(balanceOf(a)) == totalSupply <= totalMinted
  *   (I3) totalMinted <= supplyCap()
  *   (I4) balanceOf(TCKOK) == KilitliTCKO.totalSupply()
@@ -409,20 +409,37 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
     }
 
     /**
-     * Mints given number of TCKOs, respecting the supply cap.
+     * Mints a given number of tokens (locked + unlocked) to an address,
+     * respecting the supply cap.
      *
      * A fixed locked / unlocked ratio is used across all mints to external
      * participants.
      *
      * To mint TCKOs to `DAO_KASASI`, a separate code path is used, in which
      * all TCKOs are unlocked.
+     *
+     * @param amountAccount     Account to be minted and the mint amount
+     *                          packed in a single word. The amount is 48 bits
+     *                          followed by a 160-bits address.
      */
-    function mint(uint256 amountAccount) public {
+    function mintTo(uint256 amountAccount) public {
         require(
             msg.sender == DEV_KASASI ||
                 (distroStage == DistroStage.Presale2 &&
                     msg.sender == presale2Contract)
         );
+        mint(amountAccount);
+    }
+
+    /**
+     * Mints a given number of tokens (locked + unlocked) to an address,
+     * respecting the supply cap.
+     *
+     * @param amountAccount     Account to be minted and the mint amount
+     *                          packed in a single word. The amount is 48 bits
+     *                          followed by a 160-bits address.
+     */
+    function mint(uint256 amountAccount) internal {
         uint256 amount = amountAccount >> 160;
         address account = address(uint160(amountAccount));
         require(totalMinted + amount <= supplyCap()); // Checked addition (*)
@@ -446,23 +463,35 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         }
     }
 
-    function mintBulk(uint256[10] calldata amountAccount) external {
-        require(msg.sender == DEV_KASASI);
-        mint(amountAccount[0]);
-        mint(amountAccount[1]);
-        mint(amountAccount[2]);
-        mint(amountAccount[3]);
-        mint(amountAccount[4]);
-        if (amountAccount[5] == 0) return;
-        mint(amountAccount[5]);
-        if (amountAccount[6] == 0) return;
-        mint(amountAccount[6]);
-        if (amountAccount[7] == 0) return;
-        mint(amountAccount[7]);
-        if (amountAccount[8] == 0) return;
-        mint(amountAccount[8]);
-        if (amountAccount[9] == 0) return;
-        mint(amountAccount[9]);
+    constructor(bool initialMint) {
+        if (initialMint) {
+            mint(0x03a35294400057074c1956d7ef1cda0a8ca26e22c861e30cd733);
+            mint(0x03a352944000cf7fea15b049ab04ffd03c86f353729c8519d72e);
+            mint(0x0174876e8000523c8c26e20bbff5f100221c2c4f99e755681731);
+            mint(0x0174876e8000d2f98777949a73867f4e5bd3b5cdb90030056383);
+            mint(0x01176592e0001273ed0a8527bc5c6c7f99977fee362ee398190f);
+            mint(0x01176592e000302fec0096bd60e2ea983f18e61afa36627e5538);
+            mint(0x00ba43b7400052fbe88018537027b6fe4be2249fad2a7a2d2b4a);
+            mint(0x00ba43b740009b5541ab008f30afa9b047a868ca5e11fa4e6752);
+            mint(0x00ba43b740009c48199d8d3d8ee6ef4716b0cb7d99148788712e);
+            mint(0x00ba43b74000ccc00bc7e6983b1901825888a7bb3bda3b051b12);
+            mint(0x005d21dba0003480d7de36a3d92ee0cc8685f0f3fea2ade86a9b);
+            mint(0x005d21dba0003dd308d8a7035d414bd2ec934a83564f814675fa);
+            mint(0x005d21dba000530a8eeb07d81ec4837f6e2c405357defd7cb1ba);
+            mint(0x005d21dba0008ede4e8ed0899c14b73b496308af81a40573f721);
+            mint(0x0037e11d6000f2c51ec9c66d67f437f37e0513601bea9c79df2c);
+            mint(0x002540be40007c82fd5db15da5598625f0fc3f7e2077b4fd0eeb);
+            mint(0x002540be4000bf63042d4731273765a7654858afae1b3121d025);
+            mint(0x002540be4000c885abc244164fb7c1c4c81cbaf2a60a52336bd5);
+            mint(0x0012a05f2000270d986a3c6018b5ec48fdf7eb23e24a3816632e);
+            mint(0x0003b9aca000bcc3ffbf42d91faa52c2622b6e31c3ff3b714d5b);
+            // Seed signer nodes.
+            mint(0x00174876e800a41f9ad9fd440c2e297dd89f36240716d832bbdb);
+            mint(0x00174876e8009c6502b0837353097562e5ffc815ac7d44a729ea);
+            mint(0x00174876e8007d211ecf4dd431d68d800497c8902474af0412b7);
+            mint(0x00174876e80011547533ce4613dd9ae040af7bc89a7cbf0d04f0);
+            mint(0x00174876e800c807b02baccf6b128ad3ee5fab8c4ee5f10cb750);
+        }
     }
 
     function setPresale2Contract(address addr) external {
