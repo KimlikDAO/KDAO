@@ -6,7 +6,7 @@ pragma solidity 0.8.17;
 import "./KilitliTCKO.sol";
 import {OYLAMA} from "interfaces/Addresses.sol";
 import {DistroStage} from "interfaces/DistroStage.sol";
-import {IDAOKasasi} from "interfaces/IDAOKasasi.sol";
+import {IDAOKasasi, AMOUNT_OFFSET, SUPPLY_OFFSET} from "interfaces/IDAOKasasi.sol";
 import {IERC20Permit} from "interfaces/IERC20Permit.sol";
 import {IERC20Snapshot3} from "interfaces/IERC20Snapshot3.sol";
 
@@ -220,9 +220,9 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
             // treasury assets.
             if (to == DAO_KASASI) {
                 IDAOKasasi(DAO_KASASI).redeem(
-                    payable(msg.sender),
-                    amount,
-                    totalSupply
+                    (amount << AMOUNT_OFFSET) |
+                        (totalSupply << SUPPLY_OFFSET) |
+                        uint160(msg.sender)
                 );
                 totalSupply -= amount; // No overflow due to (I2)
             } else {
@@ -253,9 +253,9 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
             balances[from] = preserve(fromBalance, t) - amount;
             if (to == DAO_KASASI) {
                 IDAOKasasi(DAO_KASASI).redeem(
-                    payable(from),
-                    amount,
-                    totalSupply
+                    (amount << AMOUNT_OFFSET) |
+                        (totalSupply << SUPPLY_OFFSET) |
+                        uint160(msg.sender)
                 );
                 totalSupply -= amount;
             } else {
