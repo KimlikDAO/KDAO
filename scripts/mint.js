@@ -26,11 +26,11 @@ const DAO_MEMBERS = {
 };
 /** @const {!Object<string, number>} */
 const SEED_SIGNERS = {
-  "0xa41f9ad9fd440c2e297dd89f36240716d832bbdb": 100_000,
-  "0x9c6502b0837353097562e5ffc815ac7d44a729ea": 100_000,
-  "0x7d211ecf4dd431d68d800497c8902474af0412b7": 100_000,
-  "0x11547533ce4613dd9ae040af7bc89a7cbf0d04f0": 100_000,
-  "0xc807b02baccf6b128ad3ee5fab8c4ee5f10cb750": 100_000,
+  "0x0a8b89d47d73a716ebf0f98696a7201480c2ca43": 100_000,
+  "0xcb75191c60ae41cae73ba150c08d3b4645493a60": 100_000,
+  "0xbe3c9e51270d9313a530758b6eca68400ebf31af": 100_000,
+  "0xe168fde7bc0f8c8e0f5496bb71bcb6aa120a5623": 100_000,
+  "0xcbd882deeaa5b32e7bc92a50aa165867bdad0850": 100_000,
 };
 
 /** @const {!Object<string, string>} */
@@ -73,9 +73,8 @@ const generateConstructor = () => {
   return Object.entries(toMint).map((amountAccount) => {
     const prevAddress = amountAccount[0];
     const address = ADDRESS_CHANGES[prevAddress] || prevAddress;
-    return "mint(0x" +
-      uint48(1_000_000 * amountAccount[1]) +
-      address.slice(2) + ");\n"
+    return "mint(0x" + uint48(1_000_000 * amountAccount[1])
+      + address.slice(2) + ");\n"
   }).reduce((a, b) => a + b);
 }
 

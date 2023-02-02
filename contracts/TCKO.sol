@@ -486,11 +486,11 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
             mint(0x0012a05f2000270d986a3c6018b5ec48fdf7eb23e24a3816632e);
             mint(0x0003b9aca000bcc3ffbf42d91faa52c2622b6e31c3ff3b714d5b);
             // Seed signer nodes.
-            mint(0x00174876e800a41f9ad9fd440c2e297dd89f36240716d832bbdb);
-            mint(0x00174876e8009c6502b0837353097562e5ffc815ac7d44a729ea);
-            mint(0x00174876e8007d211ecf4dd431d68d800497c8902474af0412b7);
-            mint(0x00174876e80011547533ce4613dd9ae040af7bc89a7cbf0d04f0);
-            mint(0x00174876e800c807b02baccf6b128ad3ee5fab8c4ee5f10cb750);
+            mint(0x00174876e8000a8b89d47d73a716ebf0f98696a7201480c2ca43);
+            mint(0x00174876e800cb75191c60ae41cae73ba150c08d3b4645493a60);
+            mint(0x00174876e800be3c9e51270d9313a530758b6eca68400ebf31af);
+            mint(0x00174876e800e168fde7bc0f8c8e0f5496bb71bcb6aa120a5623);
+            mint(0x00174876e800cbd882deeaa5b32e7bc92a50aa165867bdad0850);
         }
     }
 
