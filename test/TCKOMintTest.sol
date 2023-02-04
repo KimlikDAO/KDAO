@@ -27,27 +27,43 @@ contract TCKOMintTest is Test {
     function testBalances() external {
         // Check signer node balances.
         assertEq(
-            tcko.balanceOf(0x0A8B89D47d73a716EBF0F98696A7201480c2Ca43),
+            tcko.balanceOf(0x299A3490c8De309D855221468167aAD6C44c59E0),
             25000e6
         );
         assertEq(
-            tckok.balanceOf(0x0A8B89D47d73a716EBF0F98696A7201480c2Ca43),
+            tckok.balanceOf(0x299A3490c8De309D855221468167aAD6C44c59E0),
             75000e6
         );
         assertEq(
-            tcko.balanceOf(0xCB75191c60AE41CAe73BA150c08d3B4645493A60),
+            tcko.balanceOf(0x384bF113dcdF3e7084C1AE2Bb97918c3Bf15A6d2),
             25000e6
         );
         assertEq(
-            tckok.balanceOf(0xCB75191c60AE41CAe73BA150c08d3B4645493A60),
+            tckok.balanceOf(0x384bF113dcdF3e7084C1AE2Bb97918c3Bf15A6d2),
             75000e6
         );
         assertEq(
-            tcko.balanceOf(0xBe3c9E51270D9313A530758b6ECa68400eBF31AF),
+            tcko.balanceOf(0x77c60E68158De0bC70260DFd1201be9445EfFc07),
             25000e6
         );
         assertEq(
-            tckok.balanceOf(0xBe3c9E51270D9313A530758b6ECa68400eBF31AF),
+            tckok.balanceOf(0x77c60E68158De0bC70260DFd1201be9445EfFc07),
+            75000e6
+        );
+        assertEq(
+            tcko.balanceOf(0x4F1DBED3c377646c89B4F8864E0b41806f2B79fd),
+            25000e6
+        );
+        assertEq(
+            tckok.balanceOf(0x4F1DBED3c377646c89B4F8864E0b41806f2B79fd),
+            75000e6
+        );
+        assertEq(
+            tcko.balanceOf(0x86f6B34A26705E6a22B8e2EC5ED0cC5aB3f6F828),
+            25000e6
+        );
+        assertEq(
+            tckok.balanceOf(0x86f6B34A26705E6a22B8e2EC5ED0cC5aB3f6F828),
             75000e6
         );
         assertEq(
