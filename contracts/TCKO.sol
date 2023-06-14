@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // 🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿
 
-pragma solidity 0.8.18;
+pragma solidity 0.8.20;
 
 import "./KilitliTCKO.sol";
 import {OYLAMA} from "interfaces/Addresses.sol";
@@ -172,12 +172,9 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         }
     }
 
-    function balanceOf(address account)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function balanceOf(
+        address account
+    ) external view override returns (uint256) {
         return balances[account] & BALANCE_MASK;
     }
 
@@ -195,11 +192,10 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
      * @param to               the address of the recipient.
      * @param amount           amount of TCKOs * 1e6.
      */
-    function transfer(address to, uint256 amount)
-        external
-        override
-        returns (bool)
-    {
+    function transfer(
+        address to,
+        uint256 amount
+    ) external override returns (bool) {
         // Disallow sending to the 0 address, which is a common software / user
         // error.
         require(to != address(0));
@@ -266,20 +262,19 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         return true;
     }
 
-    function approve(address spender, uint256 amount)
-        external
-        override
-        returns (bool)
-    {
+    function approve(
+        address spender,
+        uint256 amount
+    ) external override returns (bool) {
         allowance[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 addedAmount)
-        external
-        returns (bool)
-    {
+    function increaseAllowance(
+        address spender,
+        uint256 addedAmount
+    ) external returns (bool) {
         // Checked addition
         uint256 newAmount = allowance[msg.sender][spender] + addedAmount;
         allowance[msg.sender][spender] = newAmount;
@@ -287,10 +282,10 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         return true;
     }
 
-    function decreaseAllowance(address spender, uint256 subtractedAmount)
-        external
-        returns (bool)
-    {
+    function decreaseAllowance(
+        address spender,
+        uint256 subtractedAmount
+    ) external returns (bool) {
         // Checked subtraction
         uint256 newAmount = allowance[msg.sender][spender] - subtractedAmount;
         allowance[msg.sender][spender] = newAmount;
@@ -525,12 +520,9 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
     // |--   24  --|--   20  --|--   20  --|--    48    --|--    48    --|--    48    --|--    48   --|
     uint256 private tick;
 
-    function snapshot0BalanceOf(address account)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function snapshot0BalanceOf(
+        address account
+    ) external view override returns (uint256) {
         uint256 balance = balances[account];
         unchecked {
             return
@@ -539,11 +531,9 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         }
     }
 
-    function consumeSnapshot0Balance(address account)
-        external
-        override
-        returns (uint256)
-    {
+    function consumeSnapshot0Balance(
+        address account
+    ) external override returns (uint256) {
         require(msg.sender == OYLAMA);
         uint256 info = balances[account];
         unchecked {
@@ -556,12 +546,9 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         }
     }
 
-    function snapshot1BalanceOf(address account)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function snapshot1BalanceOf(
+        address account
+    ) external view override returns (uint256) {
         uint256 info = balances[account];
         unchecked {
             return
@@ -570,11 +557,9 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         }
     }
 
-    function consumeSnapshot1Balance(address account)
-        external
-        override
-        returns (uint256)
-    {
+    function consumeSnapshot1Balance(
+        address account
+    ) external override returns (uint256) {
         require(msg.sender == OYLAMA);
         uint256 info = balances[account];
         unchecked {
@@ -587,12 +572,9 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         }
     }
 
-    function snapshot2BalanceOf(address account)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function snapshot2BalanceOf(
+        address account
+    ) external view override returns (uint256) {
         uint256 info = balances[account];
         unchecked {
             return
@@ -601,11 +583,9 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         }
     }
 
-    function consumeSnapshot2Balance(address account)
-        external
-        override
-        returns (uint256)
-    {
+    function consumeSnapshot2Balance(
+        address account
+    ) external override returns (uint256) {
         require(msg.sender == OYLAMA);
         uint256 info = balances[account];
         unchecked {
@@ -641,11 +621,10 @@ contract TCKO is IERC20Permit, IERC20Snapshot3, HasDistroStage {
         }
     }
 
-    function preserve(uint256 balance, uint256 t)
-        internal
-        pure
-        returns (uint256)
-    {
+    function preserve(
+        uint256 balance,
+        uint256 t
+    ) internal pure returns (uint256) {
         unchecked {
             // tick.tick0 doesn't match balance.tick0; we need to preserve the
             // current balance.

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.18;
+pragma solidity 0.8.20;
 
 import "./ReentrancyAttackContracts.sol";
 import "contracts/TCKO.sol";
 import "forge-std/Test.sol";
-import {MockDAOKasasi} from "interfaces/testing/MockDAOKasasi.sol";
+import {MockDAOKasasiV1} from "interfaces/testing/MockDAOKasasiV1.sol";
 
 contract ReentrancyTest is Test {
     TCKO private tcko;
@@ -29,7 +29,7 @@ contract ReentrancyTest is Test {
         vm.stopPrank();
 
         vm.prank(DAO_KASASI_DEPLOYER);
-        daoKasasi = new MockDAOKasasi();
+        daoKasasi = new MockDAOKasasiV1();
 
         vm.deal(DAO_KASASI, 80e18);
 

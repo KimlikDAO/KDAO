@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.18;
+pragma solidity 0.8.20;
 
 import "contracts/TCKO.sol";
 import "forge-std/Test.sol";
-import "interfaces/testing/MockDAOKasasi.sol";
+import "interfaces/testing/MockDAOKasasiV1.sol";
 import {MockERC20Permit} from "interfaces/testing/MockTokens.sol";
 
 contract TCKOTest is Test {
@@ -21,7 +21,7 @@ contract TCKOTest is Test {
         tckok = new KilitliTCKO();
 
         vm.prank(DAO_KASASI_DEPLOYER);
-        daoKasasi = new MockDAOKasasi();
+        daoKasasi = new MockDAOKasasiV1();
 
         mintAll(1e12);
     }
@@ -387,11 +387,7 @@ contract TCKOTest is Test {
         assertEq(tcko.snapshot0BalanceOf(vm.addr(1)), 250e9);
     }
 
-    function testSnapshot0Fuzz(
-        uint8 from,
-        uint8 to,
-        uint256 amount
-    ) public {
+    function testSnapshot0Fuzz(uint8 from, uint8 to, uint256 amount) public {
         vm.assume(from % 20 != to % 20);
         amount %= 250e9;
 
@@ -485,11 +481,7 @@ contract TCKOTest is Test {
         assertEq(tcko.snapshot1BalanceOf(vm.addr(1)), 250e9);
     }
 
-    function testSnapshot1Fuzz(
-        uint8 from,
-        uint8 to,
-        uint256 amount
-    ) public {
+    function testSnapshot1Fuzz(uint8 from, uint8 to, uint256 amount) public {
         vm.assume(from % 20 != to % 20);
 
         amount %= 250e9;
@@ -583,11 +575,7 @@ contract TCKOTest is Test {
         assertEq(tcko.snapshot2BalanceOf(vm.addr(1)), 250e9);
     }
 
-    function testSnapshot2Fuzz(
-        uint8 from,
-        uint8 to,
-        uint256 amount
-    ) public {
+    function testSnapshot2Fuzz(uint8 from, uint8 to, uint256 amount) public {
         vm.assume(from % 20 != to % 20);
 
         amount %= 250e9;
@@ -609,15 +597,7 @@ contract TCKOTest is Test {
         uint256 amount,
         uint256 deadline,
         uint256 nonce
-    )
-        internal
-        view
-        returns (
-            uint8,
-            bytes32,
-            bytes32
-        )
-    {
+    ) internal view returns (uint8, bytes32, bytes32) {
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19\x01",
@@ -840,12 +820,12 @@ contract TCKOTest is Test {
     function testTCKOKselfDestruct() external {
         vm.startPrank(vm.addr(1));
         vm.expectRevert();
-        tckok.selfDestruct();
+        // tckok.selfDestruct();
         vm.stopPrank();
 
         vm.startPrank(DEV_KASASI);
         vm.expectRevert();
-        tckok.selfDestruct();
+        // tckok.selfDestruct();
         vm.stopPrank();
 
         vm.prank(vm.addr(1));
@@ -908,7 +888,7 @@ contract TCKOTest is Test {
         tckok.unlockAllEven();
 
         vm.prank(DEV_KASASI);
-        tckok.selfDestruct();
+        // tckok.selfDestruct();
 
         // Testing selfdestruct() is not implemented in anvil?
         console.log(tckok.name());

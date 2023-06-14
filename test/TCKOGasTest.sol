@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.18;
+pragma solidity 0.8.20;
 
 import "contracts/TCKO.sol";
 import "forge-std/Test.sol";
-import "interfaces/testing/MockDAOKasasi.sol";
+import "interfaces/testing/MockDAOKasasiV1.sol";
 import {MockERC20Permit} from "interfaces/testing/MockTokens.sol";
 
 contract TCKOGasTest is Test {
@@ -21,7 +21,7 @@ contract TCKOGasTest is Test {
         tckok = new KilitliTCKO();
 
         vm.prank(DAO_KASASI_DEPLOYER);
-        daoKasasi = new MockDAOKasasi();
+        daoKasasi = new MockDAOKasasiV1();
 
         mintAll(1e12);
         vm.deal(DAO_KASASI, 80e18);

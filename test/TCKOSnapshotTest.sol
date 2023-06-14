@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.18;
+pragma solidity 0.8.20;
 
 import "contracts/TCKO.sol";
 import "forge-std/Test.sol";
@@ -26,7 +26,7 @@ contract TCKOSnapshotTest is Test {
         tckok = new KilitliTCKO();
 
         vm.prank(DAO_KASASI_DEPLOYER);
-        daoKasasi = new MockDAOKasasi();
+        daoKasasi = IDAOKasasi(address(new MockDAOKasasi()));
 
         mintAll(1e12);
     }

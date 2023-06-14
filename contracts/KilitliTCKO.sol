@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // 🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿
 
-pragma solidity 0.8.18;
+pragma solidity 0.8.20;
 
 import "interfaces/Addresses.sol";
 import "interfaces/DistroStage.sol";
@@ -47,12 +47,9 @@ contract KilitliTCKO is IERC20 {
 
     uint256 private constant BALANCE0_MASK = type(uint256).max >> 128;
 
-    function balanceOf(address account)
-        external
-        view
-        override
-        returns (uint256)
-    {
+    function balanceOf(
+        address account
+    ) external view override returns (uint256) {
         unchecked {
             uint256 balance = balances[account];
             return (balance & BALANCE0_MASK) + (balance >> 128);
@@ -72,12 +69,10 @@ contract KilitliTCKO is IERC20 {
         return false;
     }
 
-    function allowance(address, address)
-        external
-        pure
-        override
-        returns (uint256)
-    {
+    function allowance(
+        address,
+        address
+    ) external pure override returns (uint256) {
         return 0;
     }
 
@@ -85,11 +80,7 @@ contract KilitliTCKO is IERC20 {
         return false;
     }
 
-    function mint(
-        address account,
-        uint256 amount,
-        DistroStage stage
-    ) external {
+    function mint(address account, uint256 amount, DistroStage stage) external {
         require(msg.sender == TCKO_ADDR);
         unchecked {
             if (uint256(stage) & 1 == 0) {
@@ -178,20 +169,6 @@ contract KilitliTCKO is IERC20 {
             }
             totalSupply -= totalUnlocked;
         }
-    }
-
-    /**
-     * Deletes the contract if all TCKO-k's have been unlocked.
-     */
-    function selfDestruct() external {
-        // We restrict this method to `DEV_KASASI` as there may be ERC20 tokens
-        // sent to this contract by accident waiting to be rescued.
-        require(msg.sender == DEV_KASASI);
-        require(
-            HasDistroStage(TCKO_ADDR).distroStage() == DistroStage.FinalUnlock
-        );
-        require(totalSupply == 0);
-        selfdestruct(DAO_KASASI);
     }
 
     /**

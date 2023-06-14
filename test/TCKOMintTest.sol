@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.18;
+pragma solidity 0.8.20;
 
 import "forge-std/Test.sol";
 import "interfaces/Addresses.sol";
 import {IDAOKasasi} from "interfaces/IDAOKasasi.sol";
-import {MockDAOKasasi} from "interfaces/testing/MockDAOKasasi.sol";
+import {MockDAOKasasiV1} from "interfaces/testing/MockDAOKasasiV1.sol";
 import {TCKO, KilitliTCKO} from "contracts/TCKO.sol";
 
 contract TCKOMintTest is Test {
@@ -21,7 +21,7 @@ contract TCKOMintTest is Test {
         tcko = new TCKO(true);
 
         vm.prank(DAO_KASASI_DEPLOYER);
-        daoKasasi = new MockDAOKasasi();
+        daoKasasi = new MockDAOKasasiV1();
     }
 
     function testBalances() external {
