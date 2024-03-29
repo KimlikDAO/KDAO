@@ -2,9 +2,8 @@
 const OLD_TCKO_ADDR = "0xB97Bf95b4F3110285727b70da5a7465bFD2098Ca";
 
 /** @const {!Object<string, number>} */
-const DAO_MEMBERS = {
+const ROUND1_BALANCES = {
   "0x57074c1956d7ef1cda0a8ca26e22c861e30cd733": 4_000_000,
-  "0xcf7fea15b049ab04ffd03c86f353729c8519d72e": 4_000_000,
   "0x523c8c26e20bbff5f100221c2c4f99e755681731": 1_600_000,
   "0xd2f98777949a73867f4e5bd3b5cdb90030056383": 1_600_000,
   "0x1273ed0a8527bc5c6c7f99977fee362ee398190f": 1_200_000,
@@ -12,7 +11,6 @@ const DAO_MEMBERS = {
   "0x52fbe88018537027b6fe4be2249fad2a7a2d2b4a": 800_000,
   "0x9b5541ab008f30afa9b047a868ca5e11fa4e6752": 800_000,
   "0x9c48199d8d3d8ee6ef4716b0cb7d99148788712e": 800_000,
-  "0xccc00bc7e6983b1901825888a7bb3bda3b051b12": 800_000,
   "0x3480d7de36a3d92ee0cc8685f0f3fea2ade86a9b": 400_000,
   "0x3dd308d8a7035d414bd2ec934a83564f814675fa": 400_000,
   "0x530a8eeb07d81ec4837f6e2c405357defd7cb1ba": 400_000,
@@ -31,13 +29,12 @@ const SEED_SIGNERS = {
   "0x77c60E68158De0bC70260DFd1201be9445EfFc07": 100_000,
   "0x4F1DBED3c377646c89B4F8864E0b41806f2B79fd": 100_000,
   "0x86f6B34A26705E6a22B8e2EC5ED0cC5aB3f6F828": 100_000,
+  "0xc855dB548A6feB1f34AcAE6531c84261008ea55A": 100_000,
+  "0xE3581636Df37f1eBfFbdFE22F8719F57c555d4f7": 100_000,
 };
 
 /** @const {!Object<string, string>} */
-const ADDRESS_CHANGES = {
-  "0xccc00bc7e6983b1901825888a7bb3bda3b051b12":
-    "0xcCc07a7597494DaF16568ff3E00C2a28edc92cCc".toLowerCase()
-}
+const ADDRESS_CHANGES = {}
 
 /**
  * @param {number|!bigint}
@@ -68,7 +65,7 @@ const sumBalances = (balances) => Object.values(balances).reduce((a, b) => a + b
 /** @return {string} */
 const generateConstructor = () => {
   /** @const {!Object<string, number>} */
-  const toMint = Object.assign({}, DAO_MEMBERS, SEED_SIGNERS);
+  const toMint = Object.assign({}, ROUND1_BALANCES, SEED_SIGNERS);
 
   return Object.entries(toMint).map((amountAccount) => {
     const prevAddress = amountAccount[0];
@@ -78,8 +75,8 @@ const generateConstructor = () => {
   }).reduce((a, b) => a + b);
 }
 
-assertEq(sumBalances(DAO_MEMBERS), 19_216_000);
-assertEq(sumBalances(SEED_SIGNERS), 500_000);
+assertEq(sumBalances(ROUND1_BALANCES), 18_416_000);
+assertEq(sumBalances(SEED_SIGNERS), 600_000);
 
 console.log(generateConstructor());
 
@@ -89,7 +86,7 @@ console.log(generateConstructor());
  */
 const validateWithNode = (nodeUrl) => {
   /** @const {!Array<!jsonrpc.Request>} */
-  const requests = Object.keys(DAO_MEMBERS).map((address, index) =>
+  const requests = Object.keys(ROUND1_BALANCES).map((address, index) =>
     /** @type {!jsonrpc.Request} */({
     "jsonrpc": "2.0",
     "id": index + 1,
@@ -107,7 +104,7 @@ const validateWithNode = (nodeUrl) => {
     .then((res) => res.map((elem) => 4 * parseInt(elem.result.slice(-12), 16)))
     .then((remoteBalances) => {
       /** @const {!Array<number>} */
-      const localBalances = Object.values(DAO_MEMBERS).map((x) => 1_000_000 * x);
+      const localBalances = Object.values(ROUND1_BALANCES).map((x) => 1_000_000 * x);
       for (let i = 0; i < localBalances.length; ++i)
         if (localBalances[i] != remoteBalances[i]) return false;
       return true;

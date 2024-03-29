@@ -1,30 +1,29 @@
 // SPDX-License-Identifier: MIT
-// 🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿🧿
 
-pragma solidity 0.8.20;
+pragma solidity ^0.8.0;
 
-import "interfaces/Addresses.sol";
-import "interfaces/DistroStage.sol";
-import "interfaces/IERC20.sol";
+import {KDAO_ADDR, KDAO_ADDR, PROTOCOL_FUND, VOTING} from "interfaces/Addresses.sol";
+import {DistroStage, IDistroStage} from "interfaces/IDistroStage.sol";
+import {IERC20} from "interfaces/IERC20.sol";
 
 /**
- * @title TCKO-k: KimlikDAO Locked Token
+ * @title KDAO-l: Locked KimlikDAO Token
  *
- * A KilitliTCKO represents a locked TCKO, which cannot be redeemed or
- * transferred, but turns into a TCKO automatically at the prescribed
+ * A LockedKDAO represents a locked KDAO, which cannot be redeemed or
+ * transferred, but turns into a KDAO automatically at the prescribed
  * `DistroStage`.
  *
- * The unlocking is triggered by the `DEV_KASASI` using the `unlockAllEven()`
+ * The unlocking is triggered by the `PROTOCOL_FUND` using the `unlockAllEven()`
  * or `unlockAllOdd()` methods and the gas is paid by KimlikDAO; the user does
  * not need to take any action to unlock their tokens.
  *
  * Invariants:
  *   (I1) sum_a(lo(balances[a])) + sum_a(hi(balances[a])) == totalSupply
- *   (I2) totalSupply == TCKO.balanceOf(address(this))
+ *   (I2) totalSupply == KDAO.balanceOf(address(this))
  *   (I3) lo(balance[a]) > 0 => accounts0.includes(a)
  *   (I4) hi(balance[a]) > 0 => accounts1.includes(a)
  */
-contract KilitliTCKO is IERC20 {
+contract LockedKDAO is IERC20 {
     uint256 public override totalSupply;
 
     mapping(address => uint256) private balances;
@@ -34,11 +33,11 @@ contract KilitliTCKO is IERC20 {
     address[] private accounts1;
 
     function name() external pure override returns (string memory) {
-        return "Kilitli TCKO";
+        return "Locked KDAO";
     }
 
     function symbol() external pure override returns (string memory) {
-        return "TCKO-k";
+        return "KDAO-l";
     }
 
     function decimals() external pure override returns (uint8) {
@@ -47,9 +46,7 @@ contract KilitliTCKO is IERC20 {
 
     uint256 private constant BALANCE0_MASK = type(uint256).max >> 128;
 
-    function balanceOf(
-        address account
-    ) external view override returns (uint256) {
+    function balanceOf(address account) external view override returns (uint256) {
         unchecked {
             uint256 balance = balances[account];
             return (balance & BALANCE0_MASK) + (balance >> 128);
@@ -61,18 +58,11 @@ contract KilitliTCKO is IERC20 {
         return false;
     }
 
-    function transferFrom(
-        address,
-        address,
-        uint256
-    ) external pure override returns (bool) {
+    function transferFrom(address, address, uint256) external pure override returns (bool) {
         return false;
     }
 
-    function allowance(
-        address,
-        address
-    ) external pure override returns (uint256) {
+    function allowance(address, address) external pure override returns (uint256) {
         return 0;
     }
 
@@ -81,7 +71,7 @@ contract KilitliTCKO is IERC20 {
     }
 
     function mint(address account, uint256 amount, DistroStage stage) external {
-        require(msg.sender == TCKO_ADDR);
+        require(msg.sender == KDAO_ADDR);
         unchecked {
             if (uint256(stage) & 1 == 0) {
                 accounts0.push(account);
@@ -97,13 +87,10 @@ contract KilitliTCKO is IERC20 {
 
     function unlock(address account) public returns (bool) {
         unchecked {
-            DistroStage stage = HasDistroStage(TCKO_ADDR).distroStage();
+            DistroStage stage = IDistroStage(KDAO_ADDR).distroStage();
             uint256 locked;
             uint256 balance = balances[account];
-            if (
-                stage >= DistroStage.DAOSaleEnd &&
-                stage != DistroStage.FinalMint
-            ) {
+            if (stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint) {
                 locked += balance & BALANCE0_MASK;
                 balance &= ~BALANCE0_MASK;
             }
@@ -115,7 +102,7 @@ contract KilitliTCKO is IERC20 {
                 balances[account] = balance;
                 emit Transfer(account, address(this), locked);
                 totalSupply -= locked;
-                IERC20(TCKO_ADDR).transfer(account, locked);
+                IERC20(KDAO_ADDR).transfer(account, locked);
                 return true;
             }
             return false;
@@ -123,11 +110,8 @@ contract KilitliTCKO is IERC20 {
     }
 
     function unlockAllEven() external {
-        DistroStage stage = HasDistroStage(TCKO_ADDR).distroStage();
-        require(
-            stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint,
-            "TCKO-k: Not matured"
-        );
+        DistroStage stage = IDistroStage(KDAO_ADDR).distroStage();
+        require(stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint, "KDAO-l: Not matured");
         unchecked {
             uint256 length = accounts0.length;
             uint256 totalUnlocked;
@@ -139,7 +123,7 @@ contract KilitliTCKO is IERC20 {
                     balances[account] = balance & ~BALANCE0_MASK;
                     emit Transfer(account, address(this), locked);
                     totalUnlocked += locked;
-                    IERC20(TCKO_ADDR).transfer(account, locked);
+                    IERC20(KDAO_ADDR).transfer(account, locked);
                 }
             }
             totalSupply -= totalUnlocked;
@@ -147,11 +131,7 @@ contract KilitliTCKO is IERC20 {
     }
 
     function unlockAllOdd() external {
-        require(
-            HasDistroStage(TCKO_ADDR).distroStage() >=
-                DistroStage.Presale2Unlock,
-            "TCKO-k: Not matured"
-        );
+        require(IDistroStage(KDAO_ADDR).distroStage() >= DistroStage.Presale2Unlock, "KDAO-l: Not matured");
 
         unchecked {
             uint256 length = accounts1.length;
@@ -164,7 +144,7 @@ contract KilitliTCKO is IERC20 {
                     balances[account] = balance & BALANCE0_MASK;
                     emit Transfer(account, address(this), locked);
                     totalUnlocked += locked;
-                    IERC20(TCKO_ADDR).transfer(account, locked);
+                    IERC20(KDAO_ADDR).transfer(account, locked);
                 }
             }
             totalSupply -= totalUnlocked;
@@ -172,14 +152,14 @@ contract KilitliTCKO is IERC20 {
     }
 
     /**
-     * Moves ERC20 tokens sent to this address by accident to `DAO_KASASI`.
+     * Moves ERC20 tokens sent to this address by accident to `PROTOCOL_FUND`.
      */
     function rescueToken(IERC20 token) external {
-        // We restrict this method to `OYLAMA` only, as we call a method of
+        // We restrict this method to `VOTING` only, as we call a method of
         // an unkown contract, which could potentially be a security risk.
-        require(msg.sender == OYLAMA);
-        // Disable sending out TCKO to ensure the invariant TCKO.(I4).
-        require(address(token) != TCKO_ADDR);
-        token.transfer(DAO_KASASI, token.balanceOf(address(this)));
+        require(msg.sender == VOTING);
+        // Disable sending out KDAO to ensure the invariant KDAO.(I4).
+        require(address(token) != KDAO_ADDR);
+        token.transfer(PROTOCOL_FUND, token.balanceOf(address(this)));
     }
 }
