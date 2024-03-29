@@ -6,7 +6,6 @@ import {KDAO} from "contracts/KDAO.sol";
 import {LockedKDAO} from "contracts/LockedKDAO.sol";
 import {Test, stdError} from "forge-std/Test.sol";
 import {
-    DEV_FUND,
     KDAOL,
     KDAOL_DEPLOYER,
     KDAO_ADDR,
@@ -42,7 +41,7 @@ contract KDAOTest is Test {
     }
 
     function mintAll(uint256 amount) public {
-        vm.startPrank(DEV_FUND);
+        vm.startPrank(VOTING);
         for (uint256 i = 1; i <= 20; ++i) {
             kdao.mintTo((amount << 160) | uint160(vm.addr(i)));
         }
@@ -106,21 +105,21 @@ contract KDAOTest is Test {
         assertEq(kdao.balanceOf(vm.addr(1)), 0);
         assertEq(kdao.balanceOf(vm.addr(2)), 500_000e6);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.Presale2);
         mintAll(1e12);
 
         assertEq(kdao.totalSupply(), 40e12);
         assertEq(kdaol.totalSupply(), 30e12);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOSaleStart);
 
         assertEq(kdao.totalSupply(), 60e12);
         assertEq(kdaol.totalSupply(), 30e12);
         assertEq(kdao.balanceOf(PROTOCOL_FUND), 20e12);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOSaleEnd);
 
         kdaol.unlock(vm.addr(1));
@@ -134,18 +133,18 @@ contract KDAOTest is Test {
         assertEq(kdaol.balanceOf(vm.addr(1)), 750e9);
         assertEq(kdaol.balanceOf(vm.addr(2)), 750e9);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOAMMStart);
 
         assertEq(kdao.totalSupply(), 80e12);
         assertEq(kdaol.totalSupply(), 15e12);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.Presale2Unlock);
 
         kdaol.unlockAllOdd();
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.FinalMint);
         mintAll(1e12);
 
@@ -154,7 +153,7 @@ contract KDAOTest is Test {
         assertEq(kdaol.balanceOf(vm.addr(1)), 750e9);
 
         vm.warp(1925097600);
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.FinalUnlock);
         kdaol.unlock(vm.addr(1));
 
@@ -180,7 +179,7 @@ contract KDAOTest is Test {
         assertEq(kdao.balanceOf(vm.addr(10)), 250e9);
         assertEq(kdaol.balanceOf(vm.addr(10)), 750e9);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.Presale2);
 
         vm.expectRevert("KDAO-l: Not matured");
@@ -195,7 +194,7 @@ contract KDAOTest is Test {
         vm.expectRevert("KDAO-l: Not matured");
         kdaol.unlockAllOdd();
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOSaleStart);
 
         vm.expectRevert("KDAO-l: Not matured");
@@ -203,7 +202,7 @@ contract KDAOTest is Test {
         vm.expectRevert("KDAO-l: Not matured");
         kdaol.unlockAllOdd();
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOSaleEnd);
 
         vm.expectRevert("KDAO-l: Not matured");
@@ -212,20 +211,20 @@ contract KDAOTest is Test {
 
         assertEq(kdao.balanceOf(vm.addr(2)), 1250e9);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOAMMStart);
         kdaol.unlock(vm.addr(1));
 
         assertEq(kdao.balanceOf(vm.addr(1)), 1250e9);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.Presale2Unlock);
         kdaol.unlock(vm.addr(1));
         assertEq(kdao.balanceOf(vm.addr(1)), 2e12);
 
         kdaol.unlockAllOdd();
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.FinalMint);
 
         assertEq(kdao.totalSupply(), 80e12);
@@ -240,7 +239,7 @@ contract KDAOTest is Test {
 
         vm.warp(1835470800000);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.FinalUnlock);
         kdaol.unlockAllEven();
 
@@ -260,7 +259,7 @@ contract KDAOTest is Test {
         assertEq(kdaol.totalSupply(), 15e12);
         assertEq(kdao.totalMinted(), 20e12);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.Presale2);
         mintAll(1e12);
 
@@ -710,7 +709,7 @@ contract KDAOTest is Test {
 
         vm.stopPrank();
 
-        vm.startPrank(DEV_FUND);
+        vm.startPrank(VOTING);
         vm.expectRevert();
         kdao.incrementDistroStage(DistroStage.Presale1);
 
@@ -720,7 +719,7 @@ contract KDAOTest is Test {
 
         assertEq(kdao.totalSupply() + 500_000e6, kdao.supplyCap());
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOSaleStart);
 
         assertEq(kdao.supplyCap(), 60_000_000e6);
@@ -783,7 +782,7 @@ contract KDAOTest is Test {
         vm.expectRevert();
         kdao.setPresale2Contract(vm.addr(0x94E008A7E2));
 
-        vm.startPrank(DEV_FUND);
+        vm.startPrank(VOTING);
         kdao.setPresale2Contract(vm.addr(0x94E008A7E2));
         kdao.incrementDistroStage(DistroStage.Presale2);
         vm.stopPrank();
@@ -835,7 +834,7 @@ contract KDAOTest is Test {
         // kdaol.selfDestruct();
         vm.stopPrank();
 
-        vm.startPrank(DEV_FUND);
+        vm.startPrank(VOTING);
         vm.expectRevert();
         // kdaol.selfDestruct();
         vm.stopPrank();
@@ -846,21 +845,21 @@ contract KDAOTest is Test {
         assertEq(kdao.balanceOf(vm.addr(1)), 0);
         assertEq(kdao.balanceOf(vm.addr(2)), 500_000e6);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.Presale2);
         mintAll(1e12);
 
         assertEq(kdao.totalSupply(), 40e12);
         assertEq(kdaol.totalSupply(), 30e12);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOSaleStart);
 
         assertEq(kdao.totalSupply(), 60e12);
         assertEq(kdaol.totalSupply(), 30e12);
         assertEq(kdao.balanceOf(PROTOCOL_FUND), 20e12);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOSaleEnd);
 
         kdaol.unlock(vm.addr(1));
@@ -874,18 +873,18 @@ contract KDAOTest is Test {
         assertEq(kdaol.balanceOf(vm.addr(1)), 750e9);
         assertEq(kdaol.balanceOf(vm.addr(2)), 750e9);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.DAOAMMStart);
 
         assertEq(kdao.totalSupply(), 80e12);
         assertEq(kdaol.totalSupply(), 15e12);
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.Presale2Unlock);
 
         kdaol.unlockAllOdd();
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.FinalMint);
         mintAll(1e12);
 
@@ -894,11 +893,11 @@ contract KDAOTest is Test {
         assertEq(kdaol.balanceOf(vm.addr(1)), 750e9);
 
         vm.warp(1925097600);
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
         kdao.incrementDistroStage(DistroStage.FinalUnlock);
 
         kdaol.unlockAllEven();
 
-        vm.prank(DEV_FUND);
+        vm.prank(VOTING);
     }
 }

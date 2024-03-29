@@ -4,14 +4,7 @@ pragma solidity ^0.8.0;
 
 import {KDAO, LockedKDAO} from "contracts/KDAO.sol";
 import {Test} from "forge-std/Test.sol";
-import {
-    DEV_FUND,
-    KDAOL_DEPLOYER,
-    KDAO_DEPLOYER,
-    PROTOCOL_FUND,
-    PROTOCOL_FUND_DEPLOYER,
-    VOTING
-} from "interfaces/Addresses.sol";
+import {KDAOL_DEPLOYER, KDAO_DEPLOYER, PROTOCOL_FUND, PROTOCOL_FUND_DEPLOYER, VOTING} from "interfaces/Addresses.sol";
 import {IProtocolFund} from "interfaces/IProtocolFund.sol";
 import {MockProtocolFund} from "interfaces/testing/MockProtocolFund.sol";
 
@@ -21,7 +14,7 @@ contract KDAOSnapshotTest is Test {
     IProtocolFund private protocolFund;
 
     function mintAll(uint256 amount) public {
-        vm.startPrank(DEV_FUND);
+        vm.startPrank(VOTING);
         for (uint256 i = 1; i <= 20; ++i) {
             kdao.mintTo((amount << 160) | uint160(vm.addr(i)));
         }

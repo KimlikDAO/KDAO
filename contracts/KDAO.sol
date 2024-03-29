@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import {LockedKDAO} from "./LockedKDAO.sol";
 import {KDAOL} from "interfaces/Addresses.sol";
-import {DEV_FUND, KDAOL, PROTOCOL_FUND, VOTING} from "interfaces/Addresses.sol";
+import {KDAOL, PROTOCOL_FUND, VOTING} from "interfaces/Addresses.sol";
 import {DistroStage, IDistroStage} from "interfaces/IDistroStage.sol";
 import {IERC20, IERC20Permit} from "interfaces/IERC20Permit.sol";
 import {IERC20Snapshot3} from "interfaces/IERC20Snapshot3.sol";
@@ -346,7 +346,7 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
      * @param newStage value to double check to prevent user error.
      */
     function incrementDistroStage(DistroStage newStage) external {
-        require(msg.sender == DEV_FUND);
+        require(msg.sender == VOTING);
         // Ensure the user provided round number matches, to prevent user error.
         require(uint256(distroStage) + 1 == uint256(newStage));
         // Make sure all minting has been done for the current stage
@@ -386,7 +386,7 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
      *                          followed by a 160-bits address.
      */
     function mintTo(uint256 amountAccount) public {
-        require(msg.sender == DEV_FUND || (distroStage == DistroStage.Presale2 && msg.sender == presale2Contract));
+        require(msg.sender == VOTING || (distroStage == DistroStage.Presale2 && msg.sender == presale2Contract));
         mint(amountAccount);
     }
 
@@ -454,7 +454,7 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     }
 
     function setPresale2Contract(address addr) external {
-        require(msg.sender == DEV_FUND);
+        require(msg.sender == VOTING);
         presale2Contract = addr;
     }
 
