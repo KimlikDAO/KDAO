@@ -301,7 +301,7 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     //     )
     // );
     bytes32 public constant override DOMAIN_SEPARATOR =
-        0xd3b6088e7d58a5742b419d3f22999e21c76cce42f96b85b3fdc54662eb2d445c;
+        0x0742280c2111a9ede9d221d5e615e8f338de5cb757c1ea643d37a78c1517327e;
 
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;

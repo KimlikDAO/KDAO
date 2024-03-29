@@ -49,6 +49,25 @@ contract KDAOTest is Test {
         vm.stopPrank();
     }
 
+    function testTypeHashes() external view {
+        assertEq(
+            kdao.PERMIT_TYPEHASH(),
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
+        );
+        assertEq(
+            kdao.DOMAIN_SEPARATOR(),
+            keccak256(
+                abi.encode(
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                    keccak256(bytes("KDAO")),
+                    keccak256(bytes("1")),
+                    0x144,
+                    KDAO_ADDR
+                )
+            )
+        );
+    }
+
     function testDAOAuthentication() public {
         vm.expectRevert();
         kdao.mintTo((uint256(1) << 160) | uint160(vm.addr(1)));
