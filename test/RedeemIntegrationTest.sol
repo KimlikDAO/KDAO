@@ -5,13 +5,13 @@ pragma solidity ^0.8.0;
 import {KDAO, LockedKDAO} from "contracts/KDAO.sol";
 import {Test} from "forge-std/Test.sol";
 import {
-    DEV_FUND,
     KDAOL,
     KDAOL_DEPLOYER,
     KDAO_ADDR,
     KDAO_DEPLOYER,
     PROTOCOL_FUND,
-    PROTOCOL_FUND_DEPLOYER
+    PROTOCOL_FUND_DEPLOYER,
+    VOTING
 } from "interfaces/Addresses.sol";
 import {IERC20} from "interfaces/IERC20.sol";
 import {IProtocolFund} from "interfaces/IProtocolFund.sol";
@@ -88,7 +88,7 @@ contract RedeemIngegrationTest is Test {
     }
 
     function mintAll(uint256 amount) public {
-        vm.startPrank(DEV_FUND);
+        vm.startPrank(VOTING);
         for (uint256 i = 1; i <= 20; ++i) {
             kdao.mintTo((amount << 160) | uint160(vm.addr(i)));
         }
