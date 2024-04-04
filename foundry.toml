@@ -3,7 +3,17 @@ sort_imports = true
 
 [profile.default]
 src = 'contracts'
-solc_version = "0.8.25"
+solc_version = "0.8.24"
+optimizer = true
+optimizer_runs = 100_000
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "interfaces/=lib/interfaces/contracts/",
+]
+
+[profile.zksync]
+src = 'contracts'
+solc_version = "0.8.24"
 optimizer = true
 optimizer_runs = 100_000
 remappings = [

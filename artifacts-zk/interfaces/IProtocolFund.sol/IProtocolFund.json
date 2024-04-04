@@ -1,0 +1,25 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "IProtocolFund",
+  "sourceName": "interfaces/IProtocolFund.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "RedeemInfo",
+          "name": "redeemInfo",
+          "type": "uint256"
+        }
+      ],
+      "name": "redeem",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}

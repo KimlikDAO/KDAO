@@ -1,0 +1,25 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "IDistroStage",
+  "sourceName": "interfaces/IDistroStage.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "distroStage",
+      "outputs": [
+        {
+          "internalType": "enum DistroStage",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}

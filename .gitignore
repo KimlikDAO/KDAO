@@ -3,5 +3,12 @@
 *.info
 artifacts
 cache
+cache_hardhat
 node_modules
 out
+zkout
+.env
+
+deployments-zk
+artifacts-zk
+cache_hardhat-zk
