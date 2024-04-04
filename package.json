@@ -6,8 +6,10 @@
   "devDependencies": {
     "@matterlabs/hardhat-zksync-deploy": "^1.3.0",
     "@matterlabs/hardhat-zksync-solc": "^1.1.4",
+    "@matterlabs/hardhat-zksync-verify": "^1.4.2",
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.5",
     "dotenv": "^16.4.5",
     "ethers": "^6.11.1",
     "zksync-ethers": "^6.7.0"

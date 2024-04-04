@@ -1,4 +1,5 @@
 require("@matterlabs/hardhat-zksync-deploy");
+require("@matterlabs/hardhat-zksync-verify");
 require("@matterlabs/hardhat-zksync-solc");
 require("@nomicfoundation/hardhat-toolbox");
 require("@nomicfoundation/hardhat-foundry");
@@ -23,6 +24,11 @@ module.exports = {
       url: "https://sepolia.era.zksync.dev", // The testnet RPC URL of zkSync Era network.
       ethNetwork: "sepolia", // The Ethereum Web3 RPC URL, or the identifier of the network (e.g. `mainnet` or `sepolia`)
       zksync: true, // enables zksolc compiler
+      verifyURL:
+        "https://explorer.sepolia.era.zksync.dev/contract_verification",
     },
+  },
+  sourcify: {
+    enabled: true,
   },
 };
