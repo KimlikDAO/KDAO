@@ -1,8 +1,8 @@
-const { Deployer } = require("@matterlabs/hardhat-zksync-deploy");
-const { Wallet, utils } = require("zksync-ethers");
-const ethers = require("ethers");
+import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
+import { Wallet } from "zksync-ethers";
+import * as ethers from "ethers";
 
-const dotenv = require("dotenv");
+import dotenv from "dotenv";
 dotenv.config();
 
 /** @const {string} */
@@ -64,4 +64,6 @@ async function main() {
   console.log(verificationId);
 }
 
-main().catch((err) => console.log(err));
+main()
+  .then()
+  .catch((err) => console.log(err));

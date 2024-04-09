@@ -1,5 +1,7 @@
 {
-  "name": "KDAO",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "KDAO",
   "scripts": {
     "deploy": "npx hardhat run scripts/deploy.js --network zkSyncTestnet"
   },
