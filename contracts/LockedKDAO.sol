@@ -2,9 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import {KDAO_ADDR, KDAO_ADDR, PROTOCOL_FUND, VOTING} from "interfaces/Addresses.sol";
-import {DistroStage, IDistroStage} from "interfaces/IDistroStage.sol";
-import {IERC20} from "interfaces/IERC20.sol";
+import {IERC20} from "interfaces/erc/IERC20.sol";
+import {DistroStage, IDistroStage} from "interfaces/kimlikdao/IDistroStage.sol";
+import {KDAO_ZKSYNC} from "interfaces/kimlikdao/addresses.sol";
+import {KDAO_MAINNET, PROTOCOL_FUND, VOTING} from "interfaces/kimlikdao/addresses.sol";
+import {uint128x2} from "interfaces/types/uint128x2.sol";
 
 /**
  * @title KDAO-l: Locked KimlikDAO Token
@@ -13,12 +15,11 @@ import {IERC20} from "interfaces/IERC20.sol";
  * transferred, but turns into a KDAO automatically at the prescribed
  * `DistroStage`.
  *
- * The unlocking is triggered by the `PROTOCOL_FUND` using the `unlockAllEven()`
- * or `unlockAllOdd()` methods and the gas is paid by KimlikDAO; the user does
- * not need to take any action to unlock their tokens.
+ * The unlocking is triggered by the `unlockAllEven()` or `unlockAllOdd()` methods
+ * permissionlessly.
  *
  * Invariants:
- *   (I1) sum_a(lo(balances[a])) + sum_a(hi(balances[a])) == totalSupply
+ *   (I1) sum_a(balances[a].sum()) == totalSupply
  *   (I2) totalSupply == KDAO.balanceOf(address(this))
  *   (I3) lo(balance[a]) > 0 => accounts0.includes(a)
  *   (I4) hi(balance[a]) > 0 => accounts1.includes(a)
@@ -26,11 +27,11 @@ import {IERC20} from "interfaces/IERC20.sol";
 contract LockedKDAO is IERC20 {
     uint256 public override totalSupply;
 
-    mapping(address => uint256) private balances;
-    address[] private accounts0;
+    mapping(address => uint128x2) private balances;
     // Split Presale2 accounts out, so that even if we can't unlock them in
     // one shot due to gas limit, we can still unlock others in one shot.
-    address[] private accounts1;
+    address[] private addrs0;
+    address[] private addrs1;
 
     function name() external pure override returns (string memory) {
         return "Locked KDAO";
@@ -44,13 +45,8 @@ contract LockedKDAO is IERC20 {
         return 6;
     }
 
-    uint256 private constant BALANCE0_MASK = type(uint256).max >> 128;
-
-    function balanceOf(address account) external view override returns (uint256) {
-        unchecked {
-            uint256 balance = balances[account];
-            return (balance & BALANCE0_MASK) + (balance >> 128);
-        }
+    function balanceOf(address addr) external view override returns (uint256) {
+        return balances[addr].sum();
     }
 
     function transfer(address to, uint256) external override returns (bool) {
@@ -70,60 +66,70 @@ contract LockedKDAO is IERC20 {
         return false;
     }
 
-    function mint(address account, uint256 amount, DistroStage stage) external {
-        require(msg.sender == KDAO_ADDR);
-        unchecked {
-            if (uint256(stage) & 1 == 0) {
-                accounts0.push(account);
-                balances[account] += amount;
-            } else {
-                accounts1.push(account);
-                balances[account] += amount << 128;
-            }
-            totalSupply += amount;
-            emit Transfer(address(this), account, amount);
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    // KimlikDAO protocol specific methods
+    //
+    ///////////////////////////////////////////////////////////////////////////
+
+    function mint(address addr, uint256 amount, DistroStage stage) external {
+        require(msg.sender == KDAO_ZKSYNC);
+        if (uint256(stage) & 1 == 0) {
+            addrs0.push(addr);
+            balances[addr] = balances[addr].incLo(amount);
+        } else {
+            addrs1.push(addr);
+            balances[addr] == balances[addr].incHi(amount);
         }
+        unchecked {
+            totalSupply += amount;
+        }
+        emit Transfer(address(this), addr, amount);
     }
 
-    function unlock(address account) public returns (bool) {
-        unchecked {
-            DistroStage stage = IDistroStage(KDAO_ADDR).distroStage();
-            uint256 locked;
-            uint256 balance = balances[account];
-            if (stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint) {
-                locked += balance & BALANCE0_MASK;
-                balance &= ~BALANCE0_MASK;
+    function unlock(address addr) public returns (bool) {
+        DistroStage stage = IDistroStage(KDAO_ZKSYNC).distroStage();
+        uint256 unlocked;
+        uint128x2 balance = balances[addr];
+        if (stage >= DistroStage.ProtocolSaleEnd && stage != DistroStage.FinalMint) {
+            unchecked {
+                unlocked += balance.lo();
             }
-            if (stage >= DistroStage.Presale2Unlock) {
-                locked += balance >> 128;
-                balance &= BALANCE0_MASK;
-            }
-            if (locked > 0) {
-                balances[account] = balance;
-                emit Transfer(account, address(this), locked);
-                totalSupply -= locked;
-                IERC20(KDAO_ADDR).transfer(account, locked);
-                return true;
-            }
-            return false;
+            balance = balance.clearLo();
         }
+        if (stage >= DistroStage.Presale2Unlock) {
+            unchecked {
+                unlocked += balance.hi(); // No overflow since totalBalance <= 100_000_000e6
+            }
+            balance = balance.clearHi();
+        }
+        if (unlocked > 0) {
+            balances[addr] = balance;
+            emit Transfer(addr, address(this), unlocked);
+            unchecked {
+                totalSupply -= unlocked;
+            }
+            IERC20(KDAO_ZKSYNC).transfer(addr, unlocked);
+            return true;
+        }
+        return false;
     }
 
     function unlockAllEven() external {
-        DistroStage stage = IDistroStage(KDAO_ADDR).distroStage();
-        require(stage >= DistroStage.DAOSaleEnd && stage != DistroStage.FinalMint, "KDAO-l: Not matured");
+        DistroStage stage = IDistroStage(KDAO_ZKSYNC).distroStage();
+        require(stage >= DistroStage.ProtocolSaleEnd && stage != DistroStage.FinalMint, "KDAO-l: Not matured");
         unchecked {
-            uint256 length = accounts0.length;
+            uint256 length = addrs0.length;
             uint256 totalUnlocked;
             for (uint256 i = 0; i < length; ++i) {
-                address account = accounts0[i];
-                uint256 balance = balances[account];
-                uint256 locked = balance & BALANCE0_MASK;
-                if (locked > 0) {
-                    balances[account] = balance & ~BALANCE0_MASK;
-                    emit Transfer(account, address(this), locked);
-                    totalUnlocked += locked;
-                    IERC20(KDAO_ADDR).transfer(account, locked);
+                address addr = addrs0[i];
+                uint128x2 balance = balances[addr];
+                uint256 unlocked = balance.lo();
+                if (unlocked > 0) {
+                    balances[addr] = balance.clearLo();
+                    emit Transfer(addr, address(this), unlocked);
+                    totalUnlocked += unlocked;
+                    IERC20(KDAO_ZKSYNC).transfer(addr, unlocked);
                 }
             }
             totalSupply -= totalUnlocked;
@@ -131,35 +137,22 @@ contract LockedKDAO is IERC20 {
     }
 
     function unlockAllOdd() external {
-        require(IDistroStage(KDAO_ADDR).distroStage() >= DistroStage.Presale2Unlock, "KDAO-l: Not matured");
-
+        require(IDistroStage(KDAO_ZKSYNC).distroStage() >= DistroStage.Presale2Unlock, "KDAO-l: Not matured");
         unchecked {
-            uint256 length = accounts1.length;
+            uint256 length = addrs1.length;
             uint256 totalUnlocked;
             for (uint256 i = 0; i < length; ++i) {
-                address account = accounts1[i];
-                uint256 balance = balances[account];
-                uint256 locked = balance >> 128;
-                if (locked > 0) {
-                    balances[account] = balance & BALANCE0_MASK;
-                    emit Transfer(account, address(this), locked);
-                    totalUnlocked += locked;
-                    IERC20(KDAO_ADDR).transfer(account, locked);
+                address addr = addrs1[i];
+                uint128x2 balance = balances[addr];
+                uint256 unlocked = balance.hi();
+                if (unlocked > 0) {
+                    balances[addr] = balance.clearHi();
+                    emit Transfer(addr, address(this), unlocked);
+                    totalUnlocked += unlocked;
+                    IERC20(KDAO_ZKSYNC).transfer(addr, unlocked);
                 }
             }
             totalSupply -= totalUnlocked;
         }
-    }
-
-    /**
-     * Moves ERC20 tokens sent to this address by accident to `PROTOCOL_FUND`.
-     */
-    function rescueToken(IERC20 token) external {
-        // We restrict this method to `VOTING` only, as we call a method of
-        // an unkown contract, which could potentially be a security risk.
-        require(msg.sender == VOTING);
-        // Disable sending out KDAO to ensure the invariant KDAO.(I4).
-        require(address(token) != KDAO_ADDR);
-        token.transfer(PROTOCOL_FUND, token.balanceOf(address(this)));
     }
 }

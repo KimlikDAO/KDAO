@@ -3,17 +3,10 @@
 pragma solidity ^0.8.0;
 
 import {LockedKDAO} from "./LockedKDAO.sol";
-import {KDAOL} from "interfaces/Addresses.sol";
-import {KDAOL, PROTOCOL_FUND, VOTING} from "interfaces/Addresses.sol";
-import {DistroStage, IDistroStage} from "interfaces/IDistroStage.sol";
-import {IERC20, IERC20Permit} from "interfaces/IERC20Permit.sol";
-import {IERC20Snapshot3} from "interfaces/IERC20Snapshot3.sol";
-import {
-    IProtocolFund,
-    REDEEM_INFO_AMOUNT_OFFSET,
-    REDEEM_INFO_SUPPLY_OFFSET,
-    RedeemInfo
-} from "interfaces/IProtocolFund.sol";
+import {IERC20, IERC20Permit} from "interfaces/erc/IERC20Permit.sol";
+import {IERC20Snapshot3} from "interfaces/erc/IERC20Snapshot3.sol";
+import {DistroStage, IDistroStage} from "interfaces/kimlikdao/IDistroStage.sol";
+import {KDAOL, PROTOCOL_FUND_ZKSYNC, VOTING} from "interfaces/kimlikdao/addresses.sol";
 
 /**
  * @title KDAO: KimlikDAO Token
@@ -98,9 +91,9 @@ import {
  *
  * Invariants:
  *   (I1) supplyCap() <= 20M * 1M * distroRound < 2^48.
- *   (I2) sum_a(balanceOf(a)) == totalSupply <= totalMinted
- *   (I3) totalMinted <= supplyCap()
- *   (I4) balanceOf(KDAOL) == KilitliKDAO.totalSupply()
+ *   (I2) sum_a(balanceOf(a)) == totalSupply
+ *   (I3) totalSupply <= supplyCap()
+ *   (I4) balanceOf(KDAOL) == LockedKDAO.totalSupply()
  *
  * (F1) follows because DistroStage has 8 values and floor(7/2) + 2 = 5.
  * Combining (F1) and (I1) gives the 100M KDAO supply cap.
@@ -126,10 +119,6 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     /// @notice The total number of KDAOs in existence, locked or unlocked.
     uint256 public override totalSupply;
 
-    /// @notice The total KDAOs minted so far, including ones that have been
-    /// redeemed later (i.e., burned).
-    uint256 public totalMinted;
-
     mapping(address => uint256) private balances;
 
     function name() external pure override returns (string memory) {
@@ -142,13 +131,6 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
 
     function decimals() external pure override returns (uint8) {
         return 6;
-    }
-
-    /**
-     * @notice The total number of KDAOs that will be minted ever.
-     */
-    function maxSupply() external pure returns (uint256) {
-        return 100_000_000e6;
     }
 
     /**
@@ -189,19 +171,13 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
      * corresponding to the sent KDAOs are given back to the `msg.sender`.
      *
      * Sending to the 0 address is disallowed to prevent user error. Sending to
-     * this contract and the `KilitliKDAO` contract are disallowed to maintain
+     * this contract and the `LockedKDAO` contract are disallowed to maintain
      * our invariants.
      *
      * @param to               the address of the recipient.
      * @param amount           amount of KDAOs * 1e6.
      */
     function transfer(address to, uint256 amount) external override returns (bool) {
-        // Disallow sending to the 0 address, which is a common software / user
-        // error.
-        require(to != address(0));
-        // Disallow sending KDAOs to this contract, as `rescueToken()` on
-        // KDAOs would result in a redemption to this contract, which is *bad*.
-        require(to != address(this));
         // We disallow sending to `KDAOL` as we want to enforce (I4)
         // at all times.
         require(to != KDAOL);
@@ -210,52 +186,25 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
             uint256 fromBalance = balances[msg.sender];
             require(amount <= fromBalance & BALANCE_MASK); // (*)
             balances[msg.sender] = preserve(fromBalance, t) - amount;
-            // If sent to `PROTOCOL_FUND`, the tokens are burned and the portion
-            // of the treasury is sent back to the msg.sender (i.e., redeemed).
-            // The redemption amount is `amount / totalSupply()` of all
-            // treasury assets.
-            if (to == PROTOCOL_FUND) {
-                IProtocolFund(PROTOCOL_FUND).redeem(
-                    RedeemInfo.wrap(
-                        (amount << REDEEM_INFO_AMOUNT_OFFSET) | (totalSupply << REDEEM_INFO_SUPPLY_OFFSET)
-                            | uint160(msg.sender)
-                    )
-                );
-                totalSupply -= amount; // No overflow due to (I2)
-            } else {
-                // No overflow due to (*) and (I1)
-                balances[to] = preserve(balances[to], t) + amount;
-            }
+            // No overflow due to (*) and (I1)
+            balances[to] = preserve(balances[to], t) + amount;
         }
         emit Transfer(msg.sender, to, amount);
         return true;
     }
 
     function transferFrom(address from, address to, uint256 amount) external override returns (bool) {
-        require(to != address(0) && to != address(this));
         require(to != KDAOL); // For (I4)
 
         uint256 senderAllowance = allowance[from][msg.sender];
-        if (senderAllowance != type(uint256).max) {
-            allowance[from][msg.sender] = senderAllowance - amount;
-        } // Checked sub
+        if (senderAllowance != type(uint256).max) allowance[from][msg.sender] = senderAllowance - amount; // Checked sub
 
         unchecked {
             uint256 t = tick;
             uint256 fromBalance = balances[from];
             require(amount <= fromBalance & BALANCE_MASK);
             balances[from] = preserve(fromBalance, t) - amount;
-            if (to == PROTOCOL_FUND) {
-                IProtocolFund(PROTOCOL_FUND).redeem(
-                    RedeemInfo.wrap(
-                        (amount << REDEEM_INFO_AMOUNT_OFFSET) | (totalSupply << REDEEM_INFO_SUPPLY_OFFSET)
-                            | uint160(msg.sender)
-                    )
-                );
-                totalSupply -= amount;
-            } else {
-                balances[to] = preserve(balances[to], t) + amount;
-            }
+            balances[to] = preserve(balances[to], t) + amount;
         }
         emit Transfer(from, to, amount);
         return true;
@@ -268,16 +217,14 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     }
 
     function increaseAllowance(address spender, uint256 addedAmount) external returns (bool) {
-        // Checked addition
-        uint256 newAmount = allowance[msg.sender][spender] + addedAmount;
+        uint256 newAmount = allowance[msg.sender][spender] + addedAmount; // Checked addition
         allowance[msg.sender][spender] = newAmount;
         emit Approval(msg.sender, spender, newAmount);
         return true;
     }
 
     function decreaseAllowance(address spender, uint256 subtractedAmount) external returns (bool) {
-        // Checked subtraction
-        uint256 newAmount = allowance[msg.sender][spender] - subtractedAmount;
+        uint256 newAmount = allowance[msg.sender][spender] - subtractedAmount; // Checked subtraction
         allowance[msg.sender][spender] = newAmount;
         emit Approval(msg.sender, spender, newAmount);
         return true;
@@ -340,7 +287,7 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     /**
      * Advances the distribution stage.
      *
-     * If we've advanced to DAOSaleStart stage or DAOAMMStart stage,
+     * If we've advanced to ProtocolSaleStart stage or ProtocolAMMStart stage,
      * automatically mints 20M unlocked KDAOs to `PROTOCOL_FUND`.
      *
      * @param newStage value to double check to prevent user error.
@@ -350,23 +297,20 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
         // Ensure the user provided round number matches, to prevent user error.
         require(uint256(distroStage) + 1 == uint256(newStage));
         // Make sure all minting has been done for the current stage
-        require(supplyCap() == totalMinted, "Mint all!");
+        require(supplyCap() == totalSupply, "Mint all!");
         // Ensure that we cannot go to FinalUnlock before 2028.
-        if (newStage == DistroStage.FinalUnlock) {
-            require(block.timestamp > 1832306400);
-        }
+        if (newStage == DistroStage.FinalUnlock) require(block.timestamp > 1832306400);
 
         distroStage = newStage;
 
-        if (newStage == DistroStage.DAOSaleStart || newStage == DistroStage.DAOAMMStart) {
+        if (newStage == DistroStage.ProtocolSaleStart || newStage == DistroStage.ProtocolAMMStart) {
             // Mint 20M KDAOs to `PROTOCOL_FUND` bypassing the standard locked
             // ratio.
             unchecked {
                 uint256 amount = 20_000_000e6;
-                totalMinted += amount;
                 totalSupply += amount;
-                balances[PROTOCOL_FUND] = preserve(balances[PROTOCOL_FUND], tick) + amount;
-                emit Transfer(address(this), PROTOCOL_FUND, amount);
+                balances[PROTOCOL_FUND_ZKSYNC] = preserve(balances[PROTOCOL_FUND_ZKSYNC], tick) + amount;
+                emit Transfer(address(this), PROTOCOL_FUND_ZKSYNC, amount);
             }
         }
     }
@@ -401,16 +345,15 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     function mint(uint256 amountAccount) internal {
         uint256 amount = amountAccount >> 160;
         address account = address(uint160(amountAccount));
-        require(totalMinted + amount <= supplyCap()); // Checked addition (*)
+        require(totalSupply + amount <= supplyCap()); // Checked addition (*)
         // We need this to satisfy (I4).
         require(account != KDAOL);
         // If minted to `PROTOCOL_FUND` unlocking would lead to redemption.
-        require(account != PROTOCOL_FUND);
+        require(account != PROTOCOL_FUND_ZKSYNC);
         unchecked {
             uint256 unlocked = (amount + 3) / 4;
             uint256 locked = amount - unlocked;
             uint256 t = tick;
-            totalMinted += amount; // No overflow due to (*) and (I1)
             totalSupply += amount; // No overflow due to (*) and (I1)
             // No overflow due to (*) and (I1)
             balances[account] = preserve(balances[account], t) + unlocked;
@@ -422,50 +365,13 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
         }
     }
 
-    constructor(bool initialMint) {
-        if (initialMint) {
-            mint(0x03a35294400057074c1956d7ef1cda0a8ca26e22c861e30cd733);
-            mint(0x03a352944000cf7fea15b049ab04ffd03c86f353729c8519d72e);
-            mint(0x0174876e8000523c8c26e20bbff5f100221c2c4f99e755681731);
-            mint(0x0174876e8000d2f98777949a73867f4e5bd3b5cdb90030056383);
-            mint(0x01176592e0001273ed0a8527bc5c6c7f99977fee362ee398190f);
-            mint(0x01176592e000302fec0096bd60e2ea983f18e61afa36627e5538);
-            mint(0x00ba43b7400052fbe88018537027b6fe4be2249fad2a7a2d2b4a);
-            mint(0x00ba43b740009b5541ab008f30afa9b047a868ca5e11fa4e6752);
-            mint(0x00ba43b740009c48199d8d3d8ee6ef4716b0cb7d99148788712e);
-            mint(0x005d21dba0003480d7de36a3d92ee0cc8685f0f3fea2ade86a9b);
-            mint(0x005d21dba0003dd308d8a7035d414bd2ec934a83564f814675fa);
-            mint(0x005d21dba000530a8eeb07d81ec4837f6e2c405357defd7cb1ba);
-            mint(0x005d21dba0008ede4e8ed0899c14b73b496308af81a40573f721);
-            mint(0x0037e11d6000f2c51ec9c66d67f437f37e0513601bea9c79df2c);
-            mint(0x002540be40007c82fd5db15da5598625f0fc3f7e2077b4fd0eeb);
-            mint(0x002540be4000bf63042d4731273765a7654858afae1b3121d025);
-            mint(0x002540be4000c885abc244164fb7c1c4c81cbaf2a60a52336bd5);
-            mint(0x0012a05f2000270d986a3c6018b5ec48fdf7eb23e24a3816632e);
-            mint(0x0003b9aca000bcc3ffbf42d91faa52c2622b6e31c3ff3b714d5b);
-            // Seed signer nodes.
-            mint(0x00174876e800299A3490c8De309D855221468167aAD6C44c59E0);
-            mint(0x00174876e800384bF113dcdF3e7084C1AE2Bb97918c3Bf15A6d2);
-            mint(0x00174876e80077c60E68158De0bC70260DFd1201be9445EfFc07);
-            mint(0x00174876e8004F1DBED3c377646c89B4F8864E0b41806f2B79fd);
-            mint(0x00174876e80086f6B34A26705E6a22B8e2EC5ED0cC5aB3f6F828);
-            mint(0x00174876e800c855dB548A6feB1f34AcAE6531c84261008ea55A);
-        }
-    }
-
-    function setPresale2Contract(address addr) external {
-        require(msg.sender == VOTING);
-        presale2Contract = addr;
-    }
+    constructor() {}
 
     /**
      * Move ERC20 tokens sent to this address by accident to `PROTOCOL_FUND`.
      */
     function rescueToken(IERC20 token) external {
-        // We restrict this method to `VOTING` only, as we call a method of
-        // an unkown contract, which could potentially be a security risk.
-        require(msg.sender == VOTING);
-        token.transfer(PROTOCOL_FUND, token.balanceOf(address(this)));
+        token.transfer(PROTOCOL_FUND_ZKSYNC, token.balanceOf(address(this)));
     }
 
     ///////////////////////////////////////////////////////////////////////////

@@ -1,6 +1,6 @@
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
-import { Wallet } from "zksync-ethers";
 import * as ethers from "ethers";
+import { Wallet } from "zksync-ethers";
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -14,56 +14,51 @@ if (!PRIVATE_KEY)
 /** @const {Array<any>} */
 const CONSTRUCTOR_ARGS = [false];
 
-async function main() {
-  console.log(`Running deploy script for the KDAO contract`);
+console.log(`Running deploy script for the KDAO contract`);
 
-  // Initialize the wallet.
+// Initialize the wallet.
 
-  /** @const {Wallet} */
-  const wallet = new Wallet(PRIVATE_KEY);
+/** @const {Wallet} */
+const wallet = new Wallet(PRIVATE_KEY);
 
-  // Create deployer object and load the artifact of the contract you want to deploy.
-  /** @const {Deployer} */
-  const deployer = new Deployer(hre, wallet);
+// Create deployer object and load the artifact of the contract you want to deploy.
+/** @const {Deployer} */
+const deployer = new Deployer(hre, wallet);
 
-  /** @const {ZkSyncArtifact} */
-  const artifact = await deployer.loadArtifact("KDAO");
+/** @const {ZkSyncArtifact} */
+const artifact = await deployer.loadArtifact("KDAO");
 
-  // Estimate contract deployment fee
+// Estimate contract deployment fee
 
-  /** @const {bigint} */
-  const deploymentFee = await deployer.estimateDeployFee(
-    artifact,
-    CONSTRUCTOR_ARGS
-  );
+/** @const {bigint} */
+const deploymentFee = await deployer.estimateDeployFee(
+  artifact,
+  CONSTRUCTOR_ARGS
+);
 
-  /** @const {bigint} */
-  const parsedFee = ethers.formatEther(deploymentFee);
-  console.log(`The deployment is estimated to cost ${parsedFee} ETH`);
+/** @const {bigint} */
+const parsedFee = ethers.formatEther(deploymentFee);
+console.log(`The deployment is estimated to cost ${parsedFee} ETH`);
 
-  const greeterContract = await deployer.deploy(artifact, CONSTRUCTOR_ARGS);
+const greeterContract = await deployer.deploy(artifact, CONSTRUCTOR_ARGS);
 
-  console.log(
-    "constructor args:" +
-      greeterContract.interface.encodeDeploy(CONSTRUCTOR_ARGS)
-  );
+console.log(
+  "constructor args:" +
+  greeterContract.interface.encodeDeploy(CONSTRUCTOR_ARGS)
+);
 
-  /** @const {string} */
-  const contractAddress = await greeterContract.getAddress();
-  console.log(`${artifact.contractName} was deployed to ${contractAddress}`);
+/** @const {string} */
+const contractAddress = await greeterContract.getAddress();
+console.log(`${artifact.contractName} was deployed to ${contractAddress}`);
 
-  // Verify the contract on zkSync
+// Verify the contract on zkSync
 
-  /** @const {number} */
-  const verificationId = await hre.run("verify:verify", {
-    address: contractAddress,
-    contract: "contracts/KDAO.sol:KDAO",
-    constructorArguments: CONSTRUCTOR_ARGS,
-  });
+/** @const {number} */
+const verificationId = await hre.run("verify:verify", {
+  address: contractAddress,
+  contract: "contracts/KDAO.sol:KDAO",
+  constructorArguments: CONSTRUCTOR_ARGS,
+});
 
-  console.log(verificationId);
-}
+console.log(verificationId);
 
-main()
-  .then()
-  .catch((err) => console.log(err));

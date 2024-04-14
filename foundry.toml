@@ -1,22 +1,16 @@
 [fmt]
 sort_imports = true
+single_line_statement_blocks = "single"
 
 [profile.default]
 src = 'contracts'
-solc_version = "0.8.24"
+test = 'test'
 optimizer = true
 optimizer_runs = 100_000
-remappings = [
-  "forge-std/=lib/forge-std/src/",
-  "interfaces/=lib/interfaces/contracts/",
-]
+remappings = ["forge-std/=lib/forge-std/src/", "interfaces/=lib/interfaces/"]
+
+[profile.ethereum]
+solc_version = "0.8.25"
 
 [profile.zksync]
-src = 'contracts'
 solc_version = "0.8.24"
-optimizer = true
-optimizer_runs = 100_000
-remappings = [
-  "forge-std/=lib/forge-std/src/",
-  "interfaces/=lib/interfaces/contracts/",
-]

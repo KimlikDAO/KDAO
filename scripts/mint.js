@@ -1,3 +1,6 @@
+import { uint48 } from "@kimlikdao/lib/ethereum/evm";
+import { assertEq } from "@kimlikdao/lib/testing/assert";
+
 /** @const {string} */
 const OLD_TCKO_ADDR = "0xB97Bf95b4F3110285727b70da5a7465bFD2098Ca";
 
@@ -35,26 +38,6 @@ const SEED_SIGNERS = {
 
 /** @const {!Object<string, string>} */
 const ADDRESS_CHANGES = {}
-
-/**
- * @param {number|!bigint}
- * @return {string}
- */
-const uint48 = (num) => num.toString(16).padStart(12, "0");
-
-/**
- * @template T
- * @param {T} given
- * @param {T} expected
- * @return {boolean}
- */
-const assertEq = (given, expected) => {
-  if (given != expected) {
-    console.log(`assertEq(): Expected ${expected}, given ${given}`)
-    process.exit(1);
-  }
-  return true;
-}
 
 /**
  * @param {!Object<string, number>} balances
