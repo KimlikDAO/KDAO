@@ -14,7 +14,9 @@ import {L2Log, L2LogLocator} from "interfaces/zksync/L2Log.sol";
 contract KDAO is IERC20Permit {
     event BridgeToZkSync(bytes32 indexed l2TxHash, address indexed addr, uint256 amount);
     event ClaimFailedZkSyncBridge(bytes32 indexed l2TxHash, address indexed addr, uint256 amount);
-    event AcceptBridgeFromZkSync(L2LogLocator indexed logLocator, address indexed addr, uint256 amount);
+    event AcceptBridgeFromZkSync(
+        L2LogLocator indexed logLocator, address indexed addr, uint256 amount
+    );
 
     function name() external pure override returns (string memory) {
         return "KimlikDAO";
@@ -28,7 +30,7 @@ contract KDAO is IERC20Permit {
         return 6;
     }
 
-    uint48x2 public totals = uint48x2From(100_000_000e6, 0);
+    uint48x2 internal totals = uint48x2From(100_000_000e6, 0);
 
     /// @notice `maxSupply()` starts out as 100M and can only be decremented thereafter
     /// through `redeem()` operations. There is no way to increment it.
@@ -65,7 +67,11 @@ contract KDAO is IERC20Permit {
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external override returns (bool) {
+    function transferFrom(address from, address to, uint256 amount)
+        external
+        override
+        returns (bool)
+    {
         require(to != address(this) && to != PROTOCOL_FUND);
         uint256 allowed = allowance[from][msg.sender];
         if (allowed != type(uint256).max) allowance[from][msg.sender] = allowed - amount; // Checked substraction
@@ -115,30 +121,41 @@ contract KDAO is IERC20Permit {
     //     )
     // );
     bytes32 public constant override DOMAIN_SEPARATOR =
-        0x0742280c2111a9ede9d221d5e615e8f338de5cb757c1ea643d37a78c1517327e;
+        0x6faf94999332059363533545c34fe71ffc0642c13cd1fa816c361b545eb33d9b;
 
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
-    bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+    bytes32 private constant PERMIT_TYPEHASH =
+        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
 
     mapping(address => uint256) public override nonces;
 
-    function permit(address owner, address spender, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
-        external
-    {
+    function permit(
+        address owner,
+        address spender,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
         require(deadline >= block.timestamp);
         unchecked {
             bytes32 digest = keccak256(
                 abi.encodePacked(
                     "\x19\x01",
                     DOMAIN_SEPARATOR,
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, amount, nonces[owner]++, deadline))
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH, owner, spender, amount, nonces[owner]++, deadline
+                        )
+                    )
                 )
             );
             address recovered = ecrecover(digest, v, r, s);
             require(recovered != address(0) && recovered == owner);
+            allowance[owner][spender] = amount;
+            emit Approval(owner, spender, amount);
         }
-        allowance[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -179,7 +196,7 @@ contract KDAO is IERC20Permit {
         payable
         returns (bytes32 l2TxHash)
     {
-        balanceOf[msg.sender] -= amount;
+        balanceOf[msg.sender] -= amount; // Checked substraction
         amountAddr aaddr = amountAddrFrom(amount, msg.sender);
         l2TxHash = ZkSync.requestL2Transaction{value: msg.value}(
             KDAO_ZKSYNC,
@@ -195,9 +212,11 @@ contract KDAO is IERC20Permit {
         emit BridgeToZkSync(l2TxHash, msg.sender, amount);
     }
 
-    function claimFailedZkSyncBridge(bytes32 l2TxHash, L2LogLocator logLocator, bytes32[] calldata merkleProof)
-        public
-    {
+    function claimFailedZkSyncBridge(
+        bytes32 l2TxHash,
+        L2LogLocator logLocator,
+        bytes32[] calldata merkleProof
+    ) public {
         require(
             ZkSync.proveL1ToL2TransactionStatus(
                 l2TxHash,
@@ -211,15 +230,20 @@ contract KDAO is IERC20Permit {
         amountAddr aaddr = bridgedAmountAddr[l2TxHash];
         require(aaddr != amountAddr.wrap(0));
         bridgedAmountAddr[l2TxHash] = amountAddr.wrap(0);
+
+        (uint256 amount, address addr) = aaddr.unpack();
+        totals = totals.incLo(amount);
         unchecked {
-            (uint256 amount, address addr) = aaddr.unpack();
-            totals = totals.incLo(amount);
             balanceOf[addr] += amount;
-            emit ClaimFailedZkSyncBridge(l2TxHash, addr, amount);
         }
+        emit ClaimFailedZkSyncBridge(l2TxHash, addr, amount);
     }
 
-    function acceptBridgeFromZkSync(amountAddr aaddr, L2LogLocator logLocator, bytes32[] calldata merkleProof) public {
+    function acceptBridgeFromZkSync(
+        amountAddr aaddr,
+        L2LogLocator logLocator,
+        bytes32[] calldata merkleProof
+    ) public {
         L2Log memory l2Log = L2Log({
             l2ShardId: 0,
             isService: false,
@@ -229,15 +253,20 @@ contract KDAO is IERC20Permit {
             value: bytes32(amountAddr.unwrap(aaddr))
         });
         require(!isLogProcessed[logLocator]);
-        require(ZkSync.proveL2LogInclusion(logLocator.batchNumber(), logLocator.messageIndex(), l2Log, merkleProof));
+        require(
+            ZkSync.proveL2LogInclusion(
+                logLocator.batchNumber(), logLocator.messageIndex(), l2Log, merkleProof
+            )
+        );
+
+        (uint256 amount, address addr) = aaddr.unpack();
+        uint48x2 total = totals.incLo(amount);
+        require(total.lo() <= total.hi()); // We maintain this invariant even if zkSync Era is compromised.
+        totals = total;
         unchecked {
-            (uint256 amount, address addr) = aaddr.unpack();
-            uint48x2 total = totals.incLo(amount);
-            require(total.lo() <= total.hi()); // We maintain this invariant even if zkSync Era is compromised.
-            totals = total;
             balanceOf[addr] += amount;
-            isLogProcessed[logLocator] = true;
-            emit AcceptBridgeFromZkSync(logLocator, addr, amount);
         }
+        isLogProcessed[logLocator] = true;
+        emit AcceptBridgeFromZkSync(logLocator, addr, amount);
     }
 }

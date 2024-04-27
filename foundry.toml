@@ -1,6 +1,7 @@
 [fmt]
-sort_imports = true
+line_length = 100
 single_line_statement_blocks = "single"
+sort_imports = true
 
 [profile.default]
 src = 'contracts'

@@ -193,11 +193,17 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external override returns (bool) {
+    function transferFrom(address from, address to, uint256 amount)
+        external
+        override
+        returns (bool)
+    {
         require(to != KDAOL); // For (I4)
 
         uint256 senderAllowance = allowance[from][msg.sender];
-        if (senderAllowance != type(uint256).max) allowance[from][msg.sender] = senderAllowance - amount; // Checked sub
+        if (senderAllowance != type(uint256).max) {
+            allowance[from][msg.sender] = senderAllowance - amount;
+        } // Checked sub
 
         unchecked {
             uint256 t = tick;
@@ -244,27 +250,38 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     //         keccak256(bytes("KDAO")),
     //         keccak256(bytes("1")),
     //         0x144,
-    //         KDAO_ADDR
+    //         KDAO_ZKSYNC
     //     )
     // );
     bytes32 public constant override DOMAIN_SEPARATOR =
-        0x0742280c2111a9ede9d221d5e615e8f338de5cb757c1ea643d37a78c1517327e;
+        0xd4e93a4d8d1d64f6e02f179e7327d0ecd38feb1be285875c9cc442af71766c76;
 
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
-    bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+    bytes32 private constant PERMIT_TYPEHASH =
+        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
 
     mapping(address => uint256) public override nonces;
 
-    function permit(address owner, address spender, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
-        external
-    {
+    function permit(
+        address owner,
+        address spender,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
         require(deadline >= block.timestamp);
         unchecked {
             bytes32 digest = keccak256(
                 abi.encodePacked(
                     "\x19\x01",
                     DOMAIN_SEPARATOR,
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, amount, nonces[owner]++, deadline))
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH, owner, spender, amount, nonces[owner]++, deadline
+                        )
+                    )
                 )
             );
             address recovered = ecrecover(digest, v, r, s);
@@ -309,7 +326,8 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
             unchecked {
                 uint256 amount = 20_000_000e6;
                 totalSupply += amount;
-                balances[PROTOCOL_FUND_ZKSYNC] = preserve(balances[PROTOCOL_FUND_ZKSYNC], tick) + amount;
+                balances[PROTOCOL_FUND_ZKSYNC] =
+                    preserve(balances[PROTOCOL_FUND_ZKSYNC], tick) + amount;
                 emit Transfer(address(this), PROTOCOL_FUND_ZKSYNC, amount);
             }
         }
@@ -329,9 +347,12 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
      *                          packed in a single word. The amount is 48 bits
      *                          followed by a 160-bits address.
      */
-    function mintTo(uint256 amountAccount) public {
-        require(msg.sender == VOTING || (distroStage == DistroStage.Presale2 && msg.sender == presale2Contract));
-        mint(amountAccount);
+    function mint(uint256 amountAccount) public {
+        require(
+            msg.sender == VOTING
+                || (distroStage == DistroStage.Presale2 && msg.sender == presale2Contract)
+        );
+        _mint(amountAccount);
     }
 
     /**
@@ -342,7 +363,7 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
      *                          packed in a single word. The amount is 48 bits
      *                          followed by a 160-bits address.
      */
-    function mint(uint256 amountAccount) internal {
+    function _mint(uint256 amountAccount) internal {
         uint256 amount = amountAccount >> 160;
         address account = address(uint160(amountAccount));
         require(totalSupply + amount <= supplyCap()); // Checked addition (*)
@@ -370,7 +391,7 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     /**
      * Move ERC20 tokens sent to this address by accident to `PROTOCOL_FUND`.
      */
-    function rescueToken(IERC20 token) external {
+    function sweepToken(IERC20 token) external {
         token.transfer(PROTOCOL_FUND_ZKSYNC, token.balanceOf(address(this)));
     }
 
