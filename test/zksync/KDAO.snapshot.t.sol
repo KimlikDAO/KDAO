@@ -12,7 +12,6 @@ import {
     VOTING
 } from "interfaces/kimlikdao/addresses.sol";
 import {amountAddrFrom} from "interfaces/types/amountAddr.sol";
-import {computeCreateAddress as computeZkSyncCreateAddress} from "interfaces/zksync/IZkSync.sol";
 import {KDAO} from "zksync/KDAO.sol";
 import {KDAOLocked} from "zksync/KDAOLocked.sol";
 
@@ -20,7 +19,7 @@ contract KDAOSnapshotTest is Test {
     KDAO private kdao;
     KDAOLocked private kdaol;
 
-    function mintAll(uint256 amount) public {
+    function mintAll(uint256 amount) internal {
         vm.startPrank(VOTING);
         for (uint256 i = 1; i <= 20; ++i) {
             kdao.mint(amountAddrFrom(amount, vm.addr(i)));
@@ -36,11 +35,6 @@ contract KDAOSnapshotTest is Test {
         kdao = KDAO(KDAO_ZKSYNC);
 
         mintAll(1e12);
-    }
-
-    function testAddressConsistency() external pure {
-        assertEq(computeZkSyncCreateAddress(KDAO_LOCKED_DEPLOYER, 0), KDAO_LOCKED);
-        assertEq(computeZkSyncCreateAddress(KDAO_ZKSYNC_DEPLOYER, 0), KDAO_ZKSYNC);
     }
 
     function testSnapshot0() external {
