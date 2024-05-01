@@ -17,3 +17,7 @@ src = "ethereum"
 [profile.zksync]
 solc_version = "0.8.24"
 src = "zksync"
+test = "test/zksync"
+fallback_oz = true
+is_system = false
+mode = "3"

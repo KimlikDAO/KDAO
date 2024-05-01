@@ -74,11 +74,15 @@ contract KDAO is IERC20Permit {
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external override returns (bool) {
+    function transferFrom(address from, address to, uint256 amount)
+        external
+        override
+        returns (bool)
+    {
         require(to != address(this) && to != PROTOCOL_FUND);
         uint256 allowed = allowance[from][msg.sender];
-        if (allowed != type(uint256).max) allowance[from][msg.sender] = allowed - amount; // Checked substraction
-        balanceOf[from] -= amount; // Checked substraction
+        if (allowed != type(uint256).max) allowance[from][msg.sender] = allowed - amount; // Checked subtraction
+        balanceOf[from] -= amount; // Checked subtraction
         unchecked {
             balanceOf[to] += amount;
         }
@@ -134,20 +138,31 @@ contract KDAO is IERC20Permit {
     bytes32 public constant override DOMAIN_SEPARATOR =
         0x6faf94999332059363533545c34fe71ffc0642c13cd1fa816c361b545eb33d9b;
 
-    bytes32 private constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+    bytes32 private constant PERMIT_TYPEHASH =
+        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
 
     mapping(address => uint256) public override nonces;
 
-    function permit(address owner, address spender, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
-        external
-    {
+    function permit(
+        address owner,
+        address spender,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
         require(deadline >= block.timestamp);
         unchecked {
             bytes32 digest = keccak256(
                 abi.encodePacked(
                     "\x19\x01",
                     DOMAIN_SEPARATOR,
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, amount, nonces[owner]++, deadline))
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH, owner, spender, amount, nonces[owner]++, deadline
+                        )
+                    )
                 )
             );
             address recovered = ecrecover(digest, v, r, s);
@@ -164,11 +179,11 @@ contract KDAO is IERC20Permit {
     ///////////////////////////////////////////////////////////////////////////
 
     function redeem(uint256 amount) public {
-        // Redeemtion on non EVM chains require providing a proof of knowledge of the private key
+        // Redemption on non EVM chains require providing a proof of knowledge of the private key
         // of the redeemer address. Because of this, redemption is allowed from EOA only.
         require(msg.sender == tx.origin);
         uint48x2 total = totals;
-        balanceOf[msg.sender] -= amount; // Checked substraction
+        balanceOf[msg.sender] -= amount; // Checked subtraction
         ProtocolFund.redeem(RedeemInfoFrom(total.setLo(amount), msg.sender));
         totals = total.dec(amount);
     }
@@ -187,9 +202,13 @@ contract KDAO is IERC20Permit {
     //
     ///////////////////////////////////////////////////////////////////////////
 
-    event BridgeToZkSync(bytes32 indexed l2TxHash, address indexed from, address indexed to, uint256 amount);
+    event BridgeToZkSync(
+        bytes32 indexed l2TxHash, address indexed from, address indexed to, uint256 amount
+    );
     event ClaimFailedZkSyncBridge(bytes32 indexed l2TxHash, address indexed addr, uint256 amount);
-    event AcceptBridgeFromZkSync(L2LogLocator indexed logLocator, address indexed addr, uint256 amount);
+    event AcceptBridgeFromZkSync(
+        L2LogLocator indexed logLocator, address indexed addr, uint256 amount
+    );
 
     mapping(bytes32 => amountAddr) private bridgedAmountAddr;
     mapping(L2LogLocator => bool) private isLogProcessed;
@@ -204,7 +223,7 @@ contract KDAO is IERC20Permit {
             addr = msg.sender;
             aaddr = aaddr.addAddr(msg.sender);
         }
-        balanceOf[msg.sender] -= amount; // Checked substraction
+        balanceOf[msg.sender] -= amount; // Checked subtraction
         l2TxHash = ZkSync.requestL2Transaction{value: msg.value}(
             KDAO_ZKSYNC,
             0,
@@ -216,13 +235,14 @@ contract KDAO is IERC20Permit {
         );
         totals = totals.decLo(amount);
         bridgedAmountAddr[l2TxHash] = aaddr.setAddr(msg.sender);
-
         emit BridgeToZkSync(l2TxHash, msg.sender, addr, amount);
     }
 
-    function claimFailedZkSyncBridge(bytes32 l2TxHash, L2LogLocator logLocator, bytes32[] calldata merkleProof)
-        public
-    {
+    function claimFailedZkSyncBridge(
+        bytes32 l2TxHash,
+        L2LogLocator logLocator,
+        bytes32[] calldata merkleProof
+    ) public {
         require(
             ZkSync.proveL1ToL2TransactionStatus(
                 l2TxHash,
@@ -245,7 +265,11 @@ contract KDAO is IERC20Permit {
         emit ClaimFailedZkSyncBridge(l2TxHash, addr, amount);
     }
 
-    function acceptBridgeFromZkSync(amountAddr aaddr, L2LogLocator logLocator, bytes32[] calldata merkleProof) public {
+    function acceptBridgeFromZkSync(
+        amountAddr aaddr,
+        L2LogLocator logLocator,
+        bytes32[] calldata merkleProof
+    ) public {
         L2Log memory l2Log = L2Log({
             l2ShardId: 0,
             isService: true,
@@ -255,7 +279,11 @@ contract KDAO is IERC20Permit {
             value: keccak256(abi.encode(aaddr))
         });
         require(!isLogProcessed[logLocator]);
-        require(ZkSync.proveL2LogInclusion(logLocator.batchNumber(), logLocator.messageIndex(), l2Log, merkleProof));
+        require(
+            ZkSync.proveL2LogInclusion(
+                logLocator.batchNumber(), logLocator.messageIndex(), l2Log, merkleProof
+            )
+        );
 
         (uint256 amount, address addr) = aaddr.unpack();
         uint48x2 total = totals.incLo(amount);
@@ -265,7 +293,6 @@ contract KDAO is IERC20Permit {
             balanceOf[addr] += amount;
         }
         isLogProcessed[logLocator] = true;
-
         emit AcceptBridgeFromZkSync(logLocator, addr, amount);
     }
 }

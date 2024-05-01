@@ -80,7 +80,7 @@ function reset1(SSBalance self, SSBalance t) pure returns (SSBalance) {
 
 function reset2(SSBalance self, SSBalance t) pure returns (SSBalance) {
     return SSBalance.wrap(
-        (SSBalance.unwrap(self) & ~((BALANCE_MASK << 96) | TICK1)) | (SSBalance.unwrap(t) & TICK1)
+        (SSBalance.unwrap(self) & ~((BALANCE_MASK << 144) | TICK2)) | (SSBalance.unwrap(t) & TICK2)
     );
 }
 

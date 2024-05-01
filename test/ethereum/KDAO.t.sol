@@ -49,6 +49,7 @@ contract KDAOTest is Test {
 
         vm.prank(address(0x1337));
         kdao.transfer(address(0x1338), 100e6);
+        assertEq(kdao.balanceOf(address(0x1337)), 0);
         assertEq(kdao.balanceOf(address(0x1338)), 200e6);
 
         vm.startPrank(address(0x1338));
