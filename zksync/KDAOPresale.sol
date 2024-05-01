@@ -8,7 +8,7 @@ address constant KDAO_PRESALE_V1 = 0x02D764e5D0d586dEFDa85C6F0D74F7805E0F6B5b;
 address constant KDAO_PRESALE_V2 = 0xd6706f5226d64EF72670501A9375E18D78dFa4ce;
 
 contract KDAOPresale {
-    constructor() {
+    constructor() payable {
         setCodeSlot(KDAO_PRESALE_V1);
     }
 

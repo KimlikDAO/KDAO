@@ -2,11 +2,24 @@
 
 pragma solidity ^0.8.0;
 
-import {LockedKDAO} from "./LockedKDAO.sol";
+import {KDAOLocked} from "./KDAOLocked.sol";
+import {SSBalance} from "./SSBalance.sol";
+import {IBridgeReceiver} from "common/IBridgeReceiver.sol";
 import {IERC20, IERC20Permit} from "interfaces/erc/IERC20Permit.sol";
 import {IERC20Snapshot3} from "interfaces/erc/IERC20Snapshot3.sol";
 import {DistroStage, IDistroStage} from "interfaces/kimlikdao/IDistroStage.sol";
-import {KDAOL, PROTOCOL_FUND_ZKSYNC, VOTING} from "interfaces/kimlikdao/addresses.sol";
+import {
+    DEV_FUND,
+    KDAO_LOCKED,
+    KDAO_PRESALE,
+    KDAO_ZKSYNC,
+    KDAO_ZKSYNC_ALIAS,
+    KPASS_SIGNERS,
+    PROTOCOL_FUND_ZKSYNC,
+    VOTING
+} from "interfaces/kimlikdao/addresses.sol";
+import {amountAddr} from "interfaces/types/amountAddr.sol";
+import {L1Messenger} from "interfaces/zksync/IL1Messenger.sol";
 
 /**
  * @title KDAO: KimlikDAO Token
@@ -93,7 +106,7 @@ import {KDAOL, PROTOCOL_FUND_ZKSYNC, VOTING} from "interfaces/kimlikdao/addresse
  *   (I1) supplyCap() <= 20M * 1M * distroRound < 2^48.
  *   (I2) sum_a(balanceOf(a)) == totalSupply
  *   (I3) totalSupply <= supplyCap()
- *   (I4) balanceOf(KDAOL) == LockedKDAO.totalSupply()
+ *   (I4) balanceOf(KDAO_LOCKED) == KDAOLocked.totalSupply()
  *
  * (F1) follows because DistroStage has 8 values and floor(7/2) + 2 = 5.
  * Combining (F1) and (I1) gives the 100M KDAO supply cap.
@@ -113,14 +126,7 @@ import {KDAOL, PROTOCOL_FUND_ZKSYNC, VOTING} from "interfaces/kimlikdao/addresse
  * storage as just keeping the KDAO balances. This is achieved by packing the
  * snapshot values, ticks and the user balance all into the same EVM word.
  */
-contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
-    mapping(address => mapping(address => uint256)) public override allowance;
-
-    /// @notice The total number of KDAOs in existence, locked or unlocked.
-    uint256 public override totalSupply;
-
-    mapping(address => uint256) private balances;
-
+contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage, IBridgeReceiver {
     function name() external pure override returns (string memory) {
         return "KimlikDAO";
     }
@@ -133,14 +139,34 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
         return 6;
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    // IERC20 balance fields and methods + additional supply methods
+    //
+    ///////////////////////////////////////////////////////////////////////////
+
+    /// @notice The total number of KDAOs in existence, locked or unlocked.
+    uint256 public override totalSupply;
+
+    mapping(address => SSBalance) private balances;
+
     /**
-     * @notice The total number of KDAOs in existence minus the locked ones.
+     * @notice An upper bound on the number of KDAOs in circulation. This
+     * method does not account for the redeemed KDAOs since the redemption
+     * happens on mainnet.
+     *
+     * Calculates the total number of KDAOs minted, minus the locked and
+     * the staked ones.
+     *
+     * To calculate the actual circulating supply, compute
+     *
+     *   circulatingSupply() - (100_000_000e6 - ethereum/KDAO.maxSupply()).
+     *
+     * which corrects this amount by the redeemed (and hence burned) KDAOs.
      */
     function circulatingSupply() external view returns (uint256) {
-        unchecked {
-            // No overflow due to (I2)
-            return totalSupply - (balances[KDAOL] & BALANCE_MASK);
-        }
+        // No overflow due to (I2)
+        return totalSupply - balances[KDAO_LOCKED].balance() - balances[KPASS_SIGNERS].balance();
     }
 
     /**
@@ -160,8 +186,14 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     }
 
     function balanceOf(address account) external view override returns (uint256) {
-        return balances[account] & BALANCE_MASK;
+        return balances[account].balance();
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    // IERC20 transfer methods
+    //
+    ///////////////////////////////////////////////////////////////////////////
 
     /**
      * @notice Transfer some KDAOs to a given address.
@@ -171,24 +203,19 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
      * corresponding to the sent KDAOs are given back to the `msg.sender`.
      *
      * Sending to the 0 address is disallowed to prevent user error. Sending to
-     * this contract and the `LockedKDAO` contract are disallowed to maintain
+     * this contract and the `KDAOLocked` contract are disallowed to maintain
      * our invariants.
      *
      * @param to               the address of the recipient.
      * @param amount           amount of KDAOs * 1e6.
      */
     function transfer(address to, uint256 amount) external override returns (bool) {
-        // We disallow sending to `KDAOL` as we want to enforce (I4)
-        // at all times.
-        require(to != KDAOL);
-        unchecked {
-            uint256 t = tick;
-            uint256 fromBalance = balances[msg.sender];
-            require(amount <= fromBalance & BALANCE_MASK); // (*)
-            balances[msg.sender] = preserve(fromBalance, t) - amount;
-            // No overflow due to (*) and (I1)
-            balances[to] = preserve(balances[to], t) + amount;
-        }
+        require(to != KDAO_LOCKED); // For (I4)
+        SSBalance t = tick;
+        SSBalance fromBalance = balances[msg.sender];
+        require(amount <= fromBalance.balance()); // (*)
+        balances[msg.sender] = fromBalance.keep(t).sub(amount);
+        balances[to] = balances[to].keep(t).add(amount); // No overflow due to (*) and (I1)
         emit Transfer(msg.sender, to, amount);
         return true;
     }
@@ -198,23 +225,28 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
         override
         returns (bool)
     {
-        require(to != KDAOL); // For (I4)
-
+        require(to != KDAO_LOCKED); // For (I4)
         uint256 senderAllowance = allowance[from][msg.sender];
         if (senderAllowance != type(uint256).max) {
-            allowance[from][msg.sender] = senderAllowance - amount;
-        } // Checked sub
-
-        unchecked {
-            uint256 t = tick;
-            uint256 fromBalance = balances[from];
-            require(amount <= fromBalance & BALANCE_MASK);
-            balances[from] = preserve(fromBalance, t) - amount;
-            balances[to] = preserve(balances[to], t) + amount;
+            allowance[from][msg.sender] = senderAllowance - amount; // Checked sub
         }
+
+        SSBalance t = tick;
+        SSBalance fromBalance = balances[from];
+        require(amount <= fromBalance.balance());
+        balances[from] = fromBalance.keep(t).sub(amount);
+        balances[to] = balances[to].keep(t).add(amount);
         emit Transfer(from, to, amount);
         return true;
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    // IERC20 allowance fields and methods + recommended update methods
+    //
+    ///////////////////////////////////////////////////////////////////////////
+
+    mapping(address => mapping(address => uint256)) public override allowance;
 
     function approve(address spender, uint256 amount) external override returns (bool) {
         allowance[msg.sender][spender] = amount;
@@ -256,7 +288,6 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     bytes32 public constant override DOMAIN_SEPARATOR =
         0xd4e93a4d8d1d64f6e02f179e7327d0ecd38feb1be285875c9cc442af71766c76;
 
-    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 private constant PERMIT_TYPEHASH =
         0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
 
@@ -293,13 +324,11 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    // DAO related fields and methods
+    // KimlikDAO protocol specific fields and methods
     //
     ///////////////////////////////////////////////////////////////////////////
 
     DistroStage public override distroStage;
-
-    address private presale2Contract;
 
     /**
      * Advances the distribution stage.
@@ -314,7 +343,7 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
         // Ensure the user provided round number matches, to prevent user error.
         require(uint256(distroStage) + 1 == uint256(newStage));
         // Make sure all minting has been done for the current stage
-        require(supplyCap() == totalSupply, "Mint all!");
+        require(supplyCap() == totalSupply);
         // Ensure that we cannot go to FinalUnlock before 2028.
         if (newStage == DistroStage.FinalUnlock) require(block.timestamp > 1832306400);
 
@@ -323,13 +352,12 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
         if (newStage == DistroStage.ProtocolSaleStart || newStage == DistroStage.ProtocolAMMStart) {
             // Mint 20M KDAOs to `PROTOCOL_FUND` bypassing the standard locked
             // ratio.
+            uint256 amount = 20_000_000e6;
             unchecked {
-                uint256 amount = 20_000_000e6;
                 totalSupply += amount;
-                balances[PROTOCOL_FUND_ZKSYNC] =
-                    preserve(balances[PROTOCOL_FUND_ZKSYNC], tick) + amount;
-                emit Transfer(address(this), PROTOCOL_FUND_ZKSYNC, amount);
             }
+            balances[PROTOCOL_FUND_ZKSYNC] = balances[PROTOCOL_FUND_ZKSYNC].keep(tick).add(amount);
+            emit Transfer(address(this), PROTOCOL_FUND_ZKSYNC, amount);
         }
     }
 
@@ -343,56 +371,84 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
      * To mint KDAOs to `PROTOCOL_FUND`, a separate code path is used, in which
      * all KDAOs are unlocked.
      *
-     * @param amountAccount     Account to be minted and the mint amount
+     * @param aaddr            Account to be minted and the mint amount
      *                          packed in a single word. The amount is 48 bits
      *                          followed by a 160-bits address.
      */
-    function mint(uint256 amountAccount) public {
+    function mint(amountAddr aaddr) public {
         require(
-            msg.sender == VOTING
-                || (distroStage == DistroStage.Presale2 && msg.sender == presale2Contract)
+            distroStage <= DistroStage.Presale2
+                && (msg.sender == VOTING || msg.sender == KDAO_PRESALE)
+                || (distroStage == DistroStage.FinalMint && msg.sender == DEV_FUND)
         );
-        _mint(amountAccount);
+        _mint(aaddr);
     }
 
     /**
      * Mints a given number of tokens (locked + unlocked) to an address,
      * respecting the supply cap.
      *
-     * @param amountAccount     Account to be minted and the mint amount
+     * @param aaddr             Account to be minted and the mint amount
      *                          packed in a single word. The amount is 48 bits
      *                          followed by a 160-bits address.
      */
-    function _mint(uint256 amountAccount) internal {
-        uint256 amount = amountAccount >> 160;
-        address account = address(uint160(amountAccount));
+    function _mint(amountAddr aaddr) internal {
+        (uint256 amount, address addr) = aaddr.unpack();
         require(totalSupply + amount <= supplyCap()); // Checked addition (*)
         // We need this to satisfy (I4).
-        require(account != KDAOL);
+        require(addr != KDAO_LOCKED);
         // If minted to `PROTOCOL_FUND` unlocking would lead to redemption.
-        require(account != PROTOCOL_FUND_ZKSYNC);
+        require(addr != PROTOCOL_FUND_ZKSYNC);
         unchecked {
             uint256 unlocked = (amount + 3) / 4;
             uint256 locked = amount - unlocked;
-            uint256 t = tick;
+            SSBalance t = tick;
             totalSupply += amount; // No overflow due to (*) and (I1)
-            // No overflow due to (*) and (I1)
-            balances[account] = preserve(balances[account], t) + unlocked;
-            // No overflow due to (*) and (I1)
-            balances[KDAOL] = preserve(balances[KDAOL], t) + locked;
-            emit Transfer(address(this), account, unlocked);
-            emit Transfer(address(this), KDAOL, locked);
-            LockedKDAO(KDAOL).mint(account, locked, distroStage);
+            balances[addr] = balances[addr].keep(t).add(unlocked); // No overflow due to (*) and (I1)
+            balances[KDAO_LOCKED] = balances[KDAO_LOCKED].keep(t).add(locked); // No overflow due to (*) and (I1)
+            emit Transfer(address(this), addr, unlocked);
+            emit Transfer(address(this), KDAO_LOCKED, locked);
+            KDAOLocked(KDAO_LOCKED).mint(addr, locked, distroStage);
         }
     }
 
-    constructor() {}
+    function sweepNativeToken() external {
+        PROTOCOL_FUND_ZKSYNC.transfer(address(this).balance);
+    }
 
-    /**
-     * Move ERC20 tokens sent to this address by accident to `PROTOCOL_FUND`.
-     */
     function sweepToken(IERC20 token) external {
         token.transfer(PROTOCOL_FUND_ZKSYNC, token.balanceOf(address(this)));
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    // Mainnet bridge related fields and methods
+    //
+    ///////////////////////////////////////////////////////////////////////////
+
+    event BridgeToMainnet(address indexed from, address indexed to, uint256 amount);
+    event AcceptBridgeFromEthereum(address indexed addr, uint256 amount);
+
+    function bridgeToMainnet(amountAddr aaddr) external {
+        SSBalance fromBalance = balances[msg.sender];
+        (uint256 amount, address to) = aaddr.unpack();
+        if (to == address(0)) {
+            to = msg.sender;
+            aaddr = aaddr.addAddr(msg.sender);
+        }
+        require(amount <= fromBalance.balance());
+        balances[msg.sender] = fromBalance.keep(tick).sub(amount);
+        L1Messenger.sendToL1(abi.encode(aaddr));
+
+        emit BridgeToMainnet(msg.sender, to, amount);
+    }
+
+    function acceptBridgeFromEthereum(amountAddr aaddr) external override {
+        require(msg.sender == KDAO_ZKSYNC_ALIAS);
+        (uint256 amount, address addr) = aaddr.unpack();
+        balances[addr] = balances[addr].keep(tick).add(amount);
+
+        emit AcceptBridgeFromEthereum(addr, amount);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -401,120 +457,56 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage {
     //
     ///////////////////////////////////////////////////////////////////////////
 
-    uint256 private constant BALANCE_MASK = type(uint48).max;
-    uint256 private constant TICK0 = type(uint256).max << 232;
-    uint256 private constant TICK1 = ((uint256(1) << 20) - 1) << 212;
-    uint256 private constant TICK2 = ((uint256(1) << 20) - 1) << 192;
+    SSBalance private tick;
 
-    // `tick` layout:
-    // |-- tick0 --|-- tick1 --|-- tick2 --|-- balance2 --|-- balance1 --|-- balance0 --|-- balance --|
-    // |--   24  --|--   20  --|--   20  --|--    48    --|--    48    --|--    48    --|--    48   --|
-    uint256 private tick;
-
-    function snapshot0BalanceOf(address account) external view override returns (uint256) {
-        uint256 balance = balances[account];
-        unchecked {
-            return BALANCE_MASK & (((balance ^ tick) & TICK0 == 0) ? (balance >> 48) : balance);
-        }
+    function snapshot0BalanceOf(address addr) external view override returns (uint256) {
+        return balances[addr].balance0(tick);
     }
 
-    function consumeSnapshot0Balance(address account) external override returns (uint256) {
+    function snapshot1BalanceOf(address addr) external view override returns (uint256) {
+        return balances[addr].balance1(tick);
+    }
+
+    function snapshot2BalanceOf(address addr) external view override returns (uint256) {
+        return balances[addr].balance2(tick);
+    }
+
+    function consumeSnapshot0Balance(address addr) external override returns (uint256) {
         require(msg.sender == VOTING);
-        uint256 info = balances[account];
-        unchecked {
-            uint256 t = tick;
-            uint256 balance = BALANCE_MASK & (((info ^ t) & TICK0 == 0) ? (info >> 48) : info);
-            info &= ~((BALANCE_MASK << 48) | TICK0);
-            balances[account] = info | (t & TICK0);
-            return balance;
-        }
+        SSBalance balance = balances[addr];
+        SSBalance t = tick;
+        balances[addr] = balance.reset0(t);
+        return balance.balance0(t);
     }
 
-    function snapshot1BalanceOf(address account) external view override returns (uint256) {
-        uint256 info = balances[account];
-        unchecked {
-            return BALANCE_MASK & (((info ^ tick) & TICK1 == 0) ? (info >> 96) : info);
-        }
-    }
-
-    function consumeSnapshot1Balance(address account) external override returns (uint256) {
+    function consumeSnapshot1Balance(address addr) external override returns (uint256) {
         require(msg.sender == VOTING);
-        uint256 info = balances[account];
-        unchecked {
-            uint256 t = tick;
-            uint256 balance = BALANCE_MASK & (((info ^ t) & TICK1 == 0) ? (info >> 96) : info);
-            info &= ~((BALANCE_MASK << 96) | TICK1);
-            balances[account] = info | (t & TICK1);
-            return balance;
-        }
+        SSBalance balance = balances[addr];
+        SSBalance t = tick;
+        balances[addr] = balance.reset1(t);
+        return balance.balance1(t);
     }
 
-    function snapshot2BalanceOf(address account) external view override returns (uint256) {
-        uint256 info = balances[account];
-        unchecked {
-            return BALANCE_MASK & (((info ^ tick) & TICK2 == 0) ? (info >> 144) : info);
-        }
-    }
-
-    function consumeSnapshot2Balance(address account) external override returns (uint256) {
+    function consumeSnapshot2Balance(address addr) external override returns (uint256) {
         require(msg.sender == VOTING);
-        uint256 info = balances[account];
-        unchecked {
-            uint256 t = tick;
-            uint256 balance = BALANCE_MASK & (((info ^ t) & TICK2 == 0) ? (info >> 144) : info);
-            info &= ~((BALANCE_MASK << 144) | TICK2);
-            balances[account] = info | (t & TICK2);
-            return balance;
-        }
+        SSBalance balance = balances[addr];
+        SSBalance t = tick;
+        balances[addr] = balance.reset2(t);
+        return balance.balance2(t);
     }
 
     function snapshot0() external override {
         require(msg.sender == VOTING);
-        unchecked {
-            tick += uint256(1) << 232;
-        }
+        tick = tick.inc0();
     }
 
     function snapshot1() external override {
         require(msg.sender == VOTING);
-        unchecked {
-            uint256 t = tick;
-            tick = t & TICK1 == TICK1 ? t & ~TICK1 : t + (uint256(1) << 212);
-        }
+        tick = tick.inc1();
     }
 
     function snapshot2() external override {
         require(msg.sender == VOTING);
-        unchecked {
-            uint256 t = tick;
-            tick = t & TICK2 == TICK2 ? t & ~TICK2 : t + (uint256(1) << 192);
-        }
-    }
-
-    function preserve(uint256 balance, uint256 t) internal pure returns (uint256) {
-        unchecked {
-            // tick.tick0 doesn't match balance.tick0; we need to preserve the
-            // current balance.
-            if ((balance ^ t) & TICK0 != 0) {
-                balance &= ~((BALANCE_MASK << 48) | TICK0);
-                balance |= (balance & BALANCE_MASK) << 48;
-                balance |= t & TICK0;
-            }
-            // tick.tick1 doesn't match balance.tick1; we need to preserve the
-            // current balance.
-            if ((balance ^ t) & TICK1 != 0) {
-                balance &= ~((BALANCE_MASK << 96) | TICK1);
-                balance |= (balance & BALANCE_MASK) << 96;
-                balance |= t & TICK1;
-            }
-            // tick.tick2 doesn't match balance.tick2; we need to preserve the
-            // current balance.
-            if ((balance ^ t) & TICK2 != 0) {
-                balance &= ~((BALANCE_MASK << 144) | TICK2);
-                balance |= (balance & BALANCE_MASK) << 144;
-                balance |= t & TICK2;
-            }
-            return balance;
-        }
+        tick = tick.inc2();
     }
 }

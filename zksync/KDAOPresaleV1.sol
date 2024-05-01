@@ -15,7 +15,9 @@ contract KDAOPresaleV1 is IUpgradable {
 
     function updateCodeTo(IUpgradable code) external override {
         // keccak256("KDAOPresaleV2")
-        require(code.versionHash() == 0xa891814ff991c9a1b3464ca3ecb80cceafbe489f2cf160f4f51baefa350d347f);
+        require(
+            code.versionHash() == 0xa891814ff991c9a1b3464ca3ecb80cceafbe489f2cf160f4f51baefa350d347f
+        );
         require(msg.sender == KDAO_PRESALE_DEPLOYER);
         setCodeSlot(address(code));
     }

@@ -2,9 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import {KDAO} from "contracts/KDAOMainnet.sol";
+import {KDAO} from "ethereum/KDAO.sol";
 import {Test} from "forge-std/Test.sol";
-import {KDAO_MAINNET, KDAO_MAINNET_DEPLOYER} from "interfaces/kimlikdao/addresses.sol";
+import {console2} from "forge-std/console2.sol";
+import {KDAO_ETHEREUM, KDAO_ETHEREUM_DEPLOYER} from "interfaces/kimlikdao/addresses.sol";
 import {uint48x2From} from "interfaces/types/uint48x2.sol";
 
 contract KDAOPremined is KDAO {
@@ -14,15 +15,15 @@ contract KDAOPremined is KDAO {
         balanceOf[address(0x1339)] = 100e6;
         balanceOf[address(0x1310)] = 100e6;
 
-        totals = uint48x2From(100_000_000e6, 400e6);
+        totals = uint48x2From(100_000_000e6, 4 * 100e6);
     }
 }
 
-contract KDAOMainnetTest is Test {
+contract KDAOTest is Test {
     KDAO private kdao;
 
     function setUp() public {
-        vm.prank(KDAO_MAINNET_DEPLOYER);
+        vm.prank(KDAO_ETHEREUM_DEPLOYER);
         kdao = new KDAOPremined();
     }
 
@@ -37,7 +38,7 @@ contract KDAOMainnetTest is Test {
                     keccak256(bytes("KDAO")),
                     keccak256(bytes("1")),
                     0x1,
-                    KDAO_MAINNET
+                    KDAO_ETHEREUM
                 )
             )
         );

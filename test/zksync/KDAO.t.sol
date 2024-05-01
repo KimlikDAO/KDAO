@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import {KDAO} from "contracts/KDAOZkSync.sol";
 import {Test} from "forge-std/Test.sol";
 import {KDAO_ZKSYNC, KDAO_ZKSYNC_DEPLOYER} from "interfaces/kimlikdao/addresses.sol";
 import {uint48x2From} from "interfaces/types/uint48x2.sol";
+import {KDAO} from "zksync/KDAO.sol";
 
-contract KDAOZkSyncTest is Test {
+contract KDAOTest is Test {
     KDAO private kdao;
 
     function setUp() public {

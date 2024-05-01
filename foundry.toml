@@ -4,7 +4,6 @@ single_line_statement_blocks = "single"
 sort_imports = true
 
 [profile.default]
-src = 'contracts'
 test = 'test'
 optimizer = true
 optimizer_runs = 100_000
@@ -12,6 +11,9 @@ remappings = ["forge-std/=lib/forge-std/src/", "interfaces/=lib/interfaces/"]
 
 [profile.ethereum]
 solc_version = "0.8.25"
+evm_version = "cancun"
+src = "ethereum"
 
 [profile.zksync]
 solc_version = "0.8.24"
+src = "zksync"

@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import {KDAOPresaleV1} from "contracts/KDAOPresaleV1.sol";
 import {Test} from "forge-std/Test.sol";
 import {IUpgradable} from "interfaces/kimlikdao/IUpgradable.sol";
 import {KDAO_PRESALE_DEPLOYER} from "interfaces/kimlikdao/addresses.sol";
+import {KDAOPresaleV1} from "zksync/KDAOPresaleV1.sol";
 
 contract MockKDAOPresaleV2 is IUpgradable {
     function versionHash() external pure override returns (bytes32) {

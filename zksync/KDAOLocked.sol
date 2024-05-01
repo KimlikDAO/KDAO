@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 import {IERC20} from "interfaces/erc/IERC20.sol";
 import {DistroStage, IDistroStage} from "interfaces/kimlikdao/IDistroStage.sol";
 import {KDAO_ZKSYNC} from "interfaces/kimlikdao/addresses.sol";
-import {KDAO_MAINNET, PROTOCOL_FUND, VOTING} from "interfaces/kimlikdao/addresses.sol";
+import {KDAO_ETHEREUM, PROTOCOL_FUND, VOTING} from "interfaces/kimlikdao/addresses.sol";
 import {uint128x2} from "interfaces/types/uint128x2.sol";
 
 /**
@@ -24,7 +24,7 @@ import {uint128x2} from "interfaces/types/uint128x2.sol";
  *   (I3) lo(balance[a]) > 0 => accounts0.includes(a)
  *   (I4) hi(balance[a]) > 0 => accounts1.includes(a)
  */
-contract LockedKDAO is IERC20 {
+contract KDAOLocked is IERC20 {
     uint256 public override totalSupply;
 
     mapping(address => uint128x2) private balances;
