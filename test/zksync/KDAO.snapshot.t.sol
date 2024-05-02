@@ -37,6 +37,34 @@ contract KDAOSnapshotTest is Test {
         mintAll(1e12);
     }
 
+    function testAuthentication() external {
+        vm.expectRevert();
+        kdao.snapshot0();
+        vm.expectRevert();
+        kdao.snapshot1();
+        vm.expectRevert();
+        kdao.snapshot1();
+
+        vm.startPrank(VOTING);
+        kdao.snapshot0();
+        kdao.snapshot1();
+        kdao.snapshot2();
+        vm.stopPrank();
+
+        vm.expectRevert();
+        kdao.consumeSnapshot0Balance(vm.addr(1));
+        vm.expectRevert();
+        kdao.consumeSnapshot1Balance(vm.addr(1));
+        vm.expectRevert();
+        kdao.consumeSnapshot2Balance(vm.addr(1));
+
+        vm.startPrank(VOTING);
+        kdao.consumeSnapshot0Balance(vm.addr(1));
+        kdao.consumeSnapshot1Balance(vm.addr(1));
+        kdao.consumeSnapshot2Balance(vm.addr(1));
+        vm.stopPrank();
+    }
+
     function testSnapshot0() external {
         vm.prank(vm.addr(1));
         kdao.transfer(vm.addr(2), 250_000e6);
@@ -51,6 +79,100 @@ contract KDAOSnapshotTest is Test {
 
         assertFalse(kdao.snapshot0BalanceOf(vm.addr(3)) == 0);
         assertFalse(kdao.snapshot0BalanceOf(vm.addr(2)) == 750_000e6);
+    }
+
+    function testSnapshot0Preserved() public {
+        vm.prank(VOTING);
+        kdao.snapshot0();
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 250e9);
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(2), 250e9);
+
+        assertEq(kdao.balanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 0);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(3));
+        kdao.transfer(vm.addr(1), 100e9);
+
+        assertEq(kdao.balanceOf(vm.addr(3)), 150e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(3)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(VOTING);
+        kdao.snapshot0();
+        assertEq(kdao.balanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.balanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.balanceOf(vm.addr(3)), 150e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(3)), 150e9);
+
+        vm.startPrank(vm.addr(2));
+        kdao.transfer(vm.addr(1), 50e9);
+        kdao.transfer(vm.addr(3), 50e9);
+        kdao.transfer(vm.addr(1), 50e9);
+        kdao.transfer(vm.addr(3), 50e9);
+        kdao.transfer(vm.addr(1), 50e9);
+        vm.stopPrank();
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(3)), 250e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(3)), 150e9);
+
+        vm.prank(VOTING);
+        kdao.snapshot0();
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(3)), 250e9);
+    }
+
+    function testSnapshot0PreservedOnSelfTransfer() public {
+        vm.prank(VOTING);
+        kdao.snapshot0();
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(1), 250e9);
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(VOTING);
+        kdao.snapshot0();
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(1), 100e9);
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr(1)), 250e9);
+    }
+
+    function testSnapshot0Fuzz(uint8 from, uint8 to, uint256 amount) public {
+        vm.assume(from % 20 != to % 20);
+        amount %= 250e9;
+
+        vm.prank(VOTING);
+        kdao.snapshot0();
+
+        vm.prank(vm.addr((from % 20) + 1));
+        kdao.transfer(vm.addr((to % 20) + 1), amount);
+
+        assertEq(kdao.balanceOf(vm.addr((from % 20) + 1)), 250e9 - amount);
+        assertEq(kdao.balanceOf(vm.addr((to % 20) + 1)), 250e9 + amount);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr((from % 20) + 1)), 250e9);
+        assertEq(kdao.snapshot0BalanceOf(vm.addr((to % 20) + 1)), 250e9);
     }
 
     function testSnapshot1() external {
@@ -69,6 +191,100 @@ contract KDAOSnapshotTest is Test {
         assertEq(kdao.snapshot1BalanceOf(vm.addr(2)), 500_000e6);
     }
 
+    function testSnapshot1Preserved() public {
+        vm.prank(VOTING);
+        kdao.snapshot1();
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 250e9);
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(2), 250e9);
+
+        assertEq(kdao.balanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 0);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(3));
+        kdao.transfer(vm.addr(1), 100e9);
+
+        assertEq(kdao.balanceOf(vm.addr(3)), 150e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(3)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(VOTING);
+        kdao.snapshot1();
+        assertEq(kdao.balanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.balanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.balanceOf(vm.addr(3)), 150e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(3)), 150e9);
+
+        vm.startPrank(vm.addr(2));
+        kdao.transfer(vm.addr(1), 50e9);
+        kdao.transfer(vm.addr(3), 50e9);
+        kdao.transfer(vm.addr(1), 50e9);
+        kdao.transfer(vm.addr(3), 50e9);
+        kdao.transfer(vm.addr(1), 50e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(3)), 250e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(3)), 150e9);
+        vm.stopPrank();
+
+        vm.prank(VOTING);
+        kdao.snapshot1();
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(3)), 250e9);
+    }
+
+    function testSnapshot1PreservedOnSelfTransfer() public {
+        vm.prank(VOTING);
+        kdao.snapshot1();
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(1), 250e9);
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(VOTING);
+        kdao.snapshot1();
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(1), 100e9);
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr(1)), 250e9);
+    }
+
+    function testSnapshot1Fuzz(uint8 from, uint8 to, uint256 amount) public {
+        vm.assume(from % 20 != to % 20);
+
+        amount %= 250e9;
+        vm.prank(VOTING);
+        kdao.snapshot1();
+
+        vm.prank(vm.addr((from % 20) + 1));
+        kdao.transfer(vm.addr((to % 20) + 1), amount);
+
+        assertEq(kdao.balanceOf(vm.addr((from % 20) + 1)), 250e9 - amount);
+        assertEq(kdao.balanceOf(vm.addr((to % 20) + 1)), 250e9 + amount);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr((from % 20) + 1)), 250e9);
+        assertEq(kdao.snapshot1BalanceOf(vm.addr((to % 20) + 1)), 250e9);
+    }
+
     function testSnapshot2() external {
         vm.prank(vm.addr(1));
         kdao.transfer(vm.addr(2), 250_000e6);
@@ -83,6 +299,100 @@ contract KDAOSnapshotTest is Test {
 
         assertEq(kdao.snapshot2BalanceOf(vm.addr(3)), 250_000e6);
         assertEq(kdao.snapshot2BalanceOf(vm.addr(2)), 500_000e6);
+    }
+
+    function testSnapshot2Preserved() public {
+        vm.prank(VOTING);
+        kdao.snapshot2();
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 250e9);
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(2), 250e9);
+
+        assertEq(kdao.balanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 0);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(3));
+        kdao.transfer(vm.addr(1), 100e9);
+
+        assertEq(kdao.balanceOf(vm.addr(3)), 150e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(3)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(VOTING);
+        kdao.snapshot2();
+        assertEq(kdao.balanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.balanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.balanceOf(vm.addr(3)), 150e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(3)), 150e9);
+
+        vm.startPrank(vm.addr(2));
+        kdao.transfer(vm.addr(1), 50e9);
+        kdao.transfer(vm.addr(3), 50e9);
+        kdao.transfer(vm.addr(1), 50e9);
+        kdao.transfer(vm.addr(3), 50e9);
+        kdao.transfer(vm.addr(1), 50e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(3)), 250e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 100e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(2)), 500e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(3)), 150e9);
+        vm.stopPrank();
+
+        vm.prank(VOTING);
+        kdao.snapshot2();
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(3)), 250e9);
+    }
+
+    function testSnapshot2PreservedOnSelfTransfer() public {
+        vm.prank(VOTING);
+        kdao.snapshot2();
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(1), 250e9);
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(VOTING);
+        kdao.snapshot2();
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 250e9);
+
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(1), 100e9);
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr(1)), 250e9);
+    }
+
+    function testSnapshot2Fuzz(uint8 from, uint8 to, uint256 amount) public {
+        vm.assume(from % 20 != to % 20);
+
+        amount %= 250e9;
+        vm.prank(VOTING);
+        kdao.snapshot2();
+
+        vm.prank(vm.addr((from % 20) + 1));
+        kdao.transfer(vm.addr((to % 20) + 1), amount);
+
+        assertEq(kdao.balanceOf(vm.addr((from % 20) + 1)), 250e9 - amount);
+        assertEq(kdao.balanceOf(vm.addr((to % 20) + 1)), 250e9 + amount);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr((from % 20) + 1)), 250e9);
+        assertEq(kdao.snapshot2BalanceOf(vm.addr((to % 20) + 1)), 250e9);
     }
 
     function testAllSnapshotsRepeatedly() external {

@@ -210,7 +210,7 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage, IBridgeReceiver {
      * @param amount           amount of KDAOs * 1e6.
      */
     function transfer(address to, uint256 amount) external override returns (bool) {
-        require(to != KDAO_LOCKED); // For (I4)
+        require(to != KDAO_ZKSYNC && to != KDAO_LOCKED); // For (I4)
         SSBalance t = tick;
         SSBalance fromBalance = balances[msg.sender];
         require(amount <= fromBalance.balance()); // (*)
@@ -225,12 +225,11 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage, IBridgeReceiver {
         override
         returns (bool)
     {
-        require(to != KDAO_LOCKED); // For (I4)
+        require(to != KDAO_ZKSYNC && to != KDAO_LOCKED); // For (I4)
         uint256 senderAllowance = allowance[from][msg.sender];
         if (senderAllowance != type(uint256).max) {
             allowance[from][msg.sender] = senderAllowance - amount; // Checked sub
         }
-
         SSBalance t = tick;
         SSBalance fromBalance = balances[from];
         require(amount <= fromBalance.balance());
@@ -339,9 +338,11 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage, IBridgeReceiver {
      * @param newStage value to double check to prevent user error.
      */
     function incrementDistroStage(DistroStage newStage) external {
-        require(msg.sender == VOTING);
-        // Ensure the user provided round number matches, to prevent user error.
-        require(uint256(distroStage) + 1 == uint256(newStage));
+        require(msg.sender == VOTING || msg.sender == DEV_FUND);
+        unchecked {
+            // Ensure the user provided round number matches, to prevent user error.
+            require(uint256(distroStage) + 1 == uint256(newStage));
+        }
         // Make sure all minting has been done for the current stage
         require(supplyCap() == totalSupply);
         // Ensure that we cannot go to FinalUnlock before 2028.
@@ -394,12 +395,10 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage, IBridgeReceiver {
      */
     function _mint(amountAddr aaddr) internal {
         (uint256 amount, address addr) = aaddr.unpack();
-        require(totalSupply + amount <= supplyCap()); // Checked addition (*)
         // We need this to satisfy (I4).
         require(addr != KDAO_LOCKED);
-        // If minted to `PROTOCOL_FUND` unlocking would lead to redemption.
-        require(addr != PROTOCOL_FUND_ZKSYNC);
         unchecked {
+            require(amount <= supplyCap() - totalSupply); // No overflow due to (I3)
             uint256 unlocked = (amount + 3) / 4;
             uint256 locked = amount - unlocked;
             SSBalance t = tick;
@@ -426,10 +425,10 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage, IBridgeReceiver {
     //
     ///////////////////////////////////////////////////////////////////////////
 
-    event BridgeToMainnet(address indexed from, address indexed to, uint256 amount);
+    event BridgeToEthereum(address indexed from, address indexed to, uint256 amount);
     event AcceptBridgeFromEthereum(address indexed addr, uint256 amount);
 
-    function bridgeToMainnet(amountAddr aaddr) external {
+    function bridgeToEthereum(amountAddr aaddr) external {
         SSBalance fromBalance = balances[msg.sender];
         (uint256 amount, address to) = aaddr.unpack();
         if (to == address(0)) {
@@ -439,15 +438,13 @@ contract KDAO is IERC20Permit, IERC20Snapshot3, IDistroStage, IBridgeReceiver {
         require(amount <= fromBalance.balance());
         balances[msg.sender] = fromBalance.keep(tick).sub(amount);
         L1Messenger.sendToL1(abi.encode(aaddr));
-
-        emit BridgeToMainnet(msg.sender, to, amount);
+        emit BridgeToEthereum(msg.sender, to, amount);
     }
 
     function acceptBridgeFromEthereum(amountAddr aaddr) external override {
         require(msg.sender == KDAO_ZKSYNC_ALIAS);
         (uint256 amount, address addr) = aaddr.unpack();
         balances[addr] = balances[addr].keep(tick).add(amount);
-
         emit AcceptBridgeFromEthereum(addr, amount);
     }
 

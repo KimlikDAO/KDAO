@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test, stdError} from "forge-std/Test.sol";
 import {DistroStage} from "interfaces/kimlikdao/IDistroStage.sol";
 import {
     DEV_FUND,
@@ -63,42 +63,67 @@ contract KDAOTest is Test {
         );
     }
 
-    function testAuthentication() external {
-        vm.expectRevert();
-        kdao.snapshot0();
-        vm.expectRevert();
-        kdao.snapshot1();
-        vm.expectRevert();
-        kdao.snapshot1();
+    function testMetadataMethods() external view {
+        assertEq(kdao.decimals(), kdaol.decimals());
+        // Increase coverage so we can always aim at 100%.
+        assertEq(kdao.name(), "KimlikDAO");
+        assertEq(kdaol.name(), "Locked KDAO");
 
-        vm.startPrank(VOTING);
-        kdao.snapshot0();
-        kdao.snapshot1();
-        kdao.snapshot2();
-        vm.stopPrank();
-
-        vm.expectRevert();
-        kdao.consumeSnapshot0Balance(vm.addr(1));
-        vm.expectRevert();
-        kdao.consumeSnapshot1Balance(vm.addr(1));
-        vm.expectRevert();
-        kdao.consumeSnapshot2Balance(vm.addr(1));
-
-        vm.startPrank(VOTING);
-        kdao.consumeSnapshot0Balance(vm.addr(1));
-        kdao.consumeSnapshot1Balance(vm.addr(1));
-        kdao.consumeSnapshot2Balance(vm.addr(1));
-        vm.stopPrank();
+        assertEq(kdao.circulatingSupply(), 5_000_000e6);
+        assertEq(bytes32(bytes(kdaol.symbol()))[0], bytes32(bytes(kdao.symbol()))[0]);
+        assertEq(bytes32(bytes(kdaol.symbol()))[1], bytes32(bytes(kdao.symbol()))[1]);
+        assertEq(bytes32(bytes(kdaol.symbol()))[2], bytes32(bytes(kdao.symbol()))[2]);
+        assertEq(bytes32(bytes(kdaol.symbol()))[3], bytes32(bytes(kdao.symbol()))[3]);
     }
 
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+
     function testTransfer() external {
+        vm.startPrank(vm.addr(1));
+
+        vm.expectRevert();
+        kdao.transfer(address(kdao), 250_000e6);
+
+        vm.expectRevert();
+        kdao.transfer(address(kdaol), 250_000e6);
+
+        vm.expectRevert();
+        kdao.transfer(vm.addr(2), 251_000e6);
+
+        vm.expectEmit(true, true, false, true, address(kdao));
+        emit Transfer(vm.addr(1), vm.addr(2), 250_000e6);
+        kdao.transfer(vm.addr(2), 250_000e6);
+
+        assertEq(kdao.totalSupply(), 20_000_000e6);
+
+        vm.stopPrank();
+
+        vm.startPrank(VOTING);
+        vm.expectRevert();
+        kdao.incrementDistroStage(DistroStage.Presale1);
+
+        kdao.incrementDistroStage(DistroStage.Presale2);
+        vm.stopPrank();
+        mintAll(1e12, VOTING);
+
+        assertEq(kdao.totalSupply(), kdao.supplyCap());
+
+        vm.prank(VOTING);
+        kdao.incrementDistroStage(DistroStage.ProtocolSaleStart);
+
+        assertEq(kdao.supplyCap(), 60_000_000e6);
+        assertEq(kdao.totalSupply(), kdao.supplyCap());
+        assertEq(kdao.circulatingSupply(), 20_000_000e6 + 40_000_000e6 / 4);
+    }
+
+    function testTransferSimple() external {
         vm.prank(vm.addr(1));
         kdao.transfer(vm.addr(2), 250_000e6);
         assertEq(kdao.balanceOf(vm.addr(1)), 0);
         assertEq(kdao.balanceOf(vm.addr(2)), 500_000e6);
     }
 
-    function testTransferFrom() external {
+    function testTransferFromSimple() external {
         vm.prank(vm.addr(1));
         kdao.approve(vm.addr(3), 250_000e6);
 
@@ -107,6 +132,46 @@ contract KDAOTest is Test {
 
         assertEq(kdao.balanceOf(vm.addr(1)), 0);
         assertEq(kdao.balanceOf(vm.addr(2)), 500_000e6);
+    }
+
+    function testTransferFrom() external {
+        vm.startPrank(vm.addr(1));
+        kdao.approve(vm.addr(11), 200_000e6);
+        kdao.approve(address(kdao), 50_000e6);
+        kdao.approve(address(0), 50_000e6);
+        kdao.approve(address(kdaol), 50_000e6);
+        vm.stopPrank();
+
+        vm.startPrank(vm.addr(11));
+        vm.expectRevert();
+        kdao.transferFrom(vm.addr(1), vm.addr(2), 201_000e6);
+
+        vm.expectRevert();
+        kdao.transferFrom(vm.addr(1), address(kdao), 200_000e6);
+
+        vm.expectRevert();
+        kdao.transferFrom(vm.addr(1), address(kdaol), 200_000e6);
+
+        kdao.transferFrom(vm.addr(1), vm.addr(2), 200_000e6);
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 50_000e6);
+        assertEq(kdao.balanceOf(vm.addr(2)), 450_000e6);
+        assertEq(kdaol.balanceOf(vm.addr(1)), 750_000e6);
+        assertEq(kdaol.balanceOf(vm.addr(2)), 750_000e6);
+
+        vm.stopPrank();
+
+        vm.prank(vm.addr(3));
+        kdao.approve(vm.addr(13), 150_000e6);
+
+        vm.prank(vm.addr(4));
+        kdao.approve(vm.addr(14), 251_000e6);
+
+        vm.startPrank(vm.addr(14));
+        vm.expectRevert();
+        kdao.transferFrom(vm.addr(4), vm.addr(5), 251_000e6);
+
+        vm.stopPrank();
     }
 
     function testProtocolAuthentication() external {
@@ -132,6 +197,71 @@ contract KDAOTest is Test {
         kdao.snapshot1();
         kdao.snapshot2();
         vm.stopPrank();
+    }
+
+    function testPreservesIndividualBalances() public {
+        for (uint256 i = 1; i < 20; ++i) {
+            vm.prank(vm.addr(i));
+            kdao.transfer(vm.addr(i + 1), 250e9);
+        }
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 0);
+        assertEq(kdao.balanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(20)), 500e9);
+    }
+
+    function testPreventOverspending() public {
+        vm.prank(vm.addr(1));
+        vm.expectRevert();
+        kdao.transfer(vm.addr(2), 251e9);
+
+        vm.prank(vm.addr(1));
+        kdao.transfer(vm.addr(3), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 0);
+
+        vm.prank(vm.addr(4));
+        kdao.transfer(vm.addr(5), 250e9);
+        vm.prank(vm.addr(5));
+        vm.expectRevert();
+        kdao.transfer(vm.addr(6), 750e9);
+    }
+
+    function testAuthorizedPartiesCanSpendOnOwnersBehalf() public {
+        vm.prank(vm.addr(1));
+        kdao.approve(vm.addr(2), 1e12);
+
+        assertEq(kdao.allowance(vm.addr(1), vm.addr(2)), 1e12);
+
+        vm.prank(vm.addr(2));
+        kdao.transferFrom(vm.addr(1), vm.addr(3), 250e9);
+
+        assertEq(kdao.allowance(vm.addr(1), vm.addr(2)), 750e9);
+        assertEq(kdao.balanceOf(vm.addr(1)), 0);
+        assertEq(kdao.balanceOf(vm.addr(2)), 250e9);
+        assertEq(kdao.balanceOf(vm.addr(3)), 500e9);
+    }
+
+    function testUsersCanAdjustAllowance() public {
+        vm.startPrank(vm.addr(1));
+        kdao.increaseAllowance(vm.addr(2), 3);
+
+        vm.expectRevert(stdError.arithmeticError);
+        kdao.increaseAllowance(vm.addr(2), type(uint256).max);
+
+        vm.expectRevert(stdError.arithmeticError);
+        kdao.decreaseAllowance(vm.addr(2), 4);
+
+        kdao.decreaseAllowance(vm.addr(2), 2);
+        vm.stopPrank();
+
+        vm.startPrank(vm.addr(2));
+        vm.expectRevert(stdError.arithmeticError);
+        kdao.transferFrom(vm.addr(1), vm.addr(2), 2);
+
+        kdao.transferFrom(vm.addr(1), vm.addr(2), 1);
+
+        assertEq(kdao.balanceOf(vm.addr(1)), 250e9 - 1);
+        assertEq(kdao.balanceOf(vm.addr(2)), 250e9 + 1);
     }
 
     function testShouldCompleteAllRounds() external {
