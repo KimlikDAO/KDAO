@@ -126,9 +126,7 @@ contract KDAO is IERC20Permit {
 
     // keccak256(
     //     abi.encode(
-    //         keccak256(
-    //             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-    //         ),
+    //         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
     //         keccak256(bytes("KDAO")),
     //         keccak256(bytes("1")),
     //         0x1,

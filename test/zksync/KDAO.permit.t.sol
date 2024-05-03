@@ -30,6 +30,23 @@ contract KDAOPermitTest is Test {
         mintAll(1e12, VOTING);
     }
 
+    function testDomainSeparator() external view {
+        assertEq(
+            kdao.DOMAIN_SEPARATOR(),
+            keccak256(
+                abi.encode(
+                    keccak256(
+                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                    ),
+                    keccak256(bytes("KDAO")),
+                    keccak256(bytes("1")),
+                    0x144,
+                    KDAO_ZKSYNC
+                )
+            )
+        );
+    }
+
     function authorizePayment(
         uint256 ownerPrivateKey,
         address spender,

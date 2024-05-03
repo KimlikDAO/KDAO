@@ -46,23 +46,6 @@ contract KDAOTest is Test {
         assertEq(computeZkSyncCreateAddress(KDAO_ZKSYNC_DEPLOYER, 0), KDAO_ZKSYNC);
     }
 
-    function testDomainSeparator() external view {
-        assertEq(
-            kdao.DOMAIN_SEPARATOR(),
-            keccak256(
-                abi.encode(
-                    keccak256(
-                        "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                    ),
-                    keccak256(bytes("KDAO")),
-                    keccak256(bytes("1")),
-                    0x144,
-                    KDAO_ZKSYNC
-                )
-            )
-        );
-    }
-
     function testMetadataMethods() external view {
         assertEq(kdao.decimals(), kdaol.decimals());
         // Increase coverage so we can always aim at 100%.
